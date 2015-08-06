@@ -3,33 +3,15 @@
 An OTP library to be used for CT log outputs you want to be readable
 around all that noise they contain.
 
-It adds 3 levels of logging with colors:
+## What it looks like
 
-Good results in green:
-
-```
-%%% mycode_SUITE ==> TestCase: OK
-```
-
-Errors in red:
-
-```
-%%% mycode_SUITE ==> TestCase (group GroupName): FAILED
-%%% mycode_SUITE ==>    Stacktrace
-```
-
-Skipped cases in magenta:
-
-```
-%%% mycode_SUITE ==> TestCase (group GroupName): SKIPPED
-%%% mycode_SUITE ==>    SkipReason
-```
+![example](http://i.imgur.com/Bib9Ls0.png)
 
 ## Usage
 
 To use it, add to your project as:
 
-```
+```erlang
 {ct_opts, [{ct_hooks, [cth_readable_shell]}]}.
 
 {profiles, [
@@ -40,3 +22,4 @@ To use it, add to your project as:
     ]}]}
 ]}.
 ```
+
