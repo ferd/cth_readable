@@ -1,0 +1,15 @@
+{application, cth_readable,
+ [{description, "Common Test hooks for more readable logs"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {contributors, []},
+  {licenses, []},
+  {links, []}
+ ]}.
