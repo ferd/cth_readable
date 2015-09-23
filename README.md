@@ -15,8 +15,8 @@ There are currently two hooks:
 
 ## What it looks like
 
-![example](http://i.imgur.com/Bib9Ls0.png)
-![example](http://i.imgur.com/ySNL8BE.png)
+![example](http://i.imgur.com/dDFNxZr.png)
+![example](http://i.imgur.com/RXZBG7H.png)
 
 ## Usage
 
