@@ -2,6 +2,7 @@
 
 -record(state, {id,
                 sasl_reset,
+                lager_reset,
                 handlers=[],
                 named}).
 -record(eh_state, {buf = [], sasl=false}).
@@ -33,6 +34,18 @@
          handle_event/2, handle_call/2, handle_info/2,
          terminate/2, code_change/3]).
 
+-define(DEFAULT_LAGER_SINK, lager_event).
+-define(DEFAULT_LAGER_HANDLER_CONF,
+        [{lager_console_backend, info},
+         {lager_file_backend,
+            [{file, "log/error.log"}, {level, error},
+             {size, 10485760}, {date, "$D0"}, {count, 5}]
+         },
+         {lager_file_backend,
+            [{file, "log/console.log"}, {level, info},
+             {size, 10485760}, {date, "$D0"}, {count, 5}]
+         }
+        ]).
 
 %% @doc Return a unique id for this CTH.
 id(_Opts) ->
@@ -46,14 +59,16 @@ init(Id, _Opts) ->
     register(?MODULE, Named),
     error_logger:tty(false), % TODO check if on to begin with
     application:load(sasl), % TODO do this optionally?
+    LagerReset = setup_lager(),
     case application:get_env(sasl, sasl_error_logger) of
         {ok, tty} ->
             ok = gen_event:add_handler(error_logger, ?MODULE, [sasl]),
             application:set_env(sasl, sasl_error_logger, false),
-            {ok, #state{id=Id, sasl_reset={reset, tty}, handlers=[?MODULE], named=Named}};
+            {ok, #state{id=Id, sasl_reset={reset, tty}, lager_reset=LagerReset,
+                        handlers=[?MODULE], named=Named}};
         _ ->
             ok = gen_event:add_handler(error_logger, ?MODULE, [nosasl]),
-            {ok, #state{id=Id, handlers=[?MODULE], named=Named}}
+            {ok, #state{id=Id, lager_reset=LagerReset, handlers=[?MODULE], named=Named}}
     end.
 
 %% @doc Called before init_per_suite is called. 
@@ -120,15 +135,17 @@ on_tc_skip(_TC, _Reason, State=#state{}) ->
     State.
 
 %% @doc Called when the scope of the CTH is done
-terminate(_State=#state{handlers=Handlers, sasl_reset=Reset, named=Pid}) ->
+terminate(_State=#state{handlers=Handlers, sasl_reset=SReset,
+                        lager_reset=LReset, named=Pid}) ->
     _ = [gen_event:delete_handler(error_logger, Handler, shutdown)
          || Handler <- Handlers],
-    case Reset of
+    case SReset of
         {reset, Val} -> application:set_env(sasl, sasl_error_logger, Val);
         undefined -> ok
     end,
     error_logger:tty(true),
     application:unload(sasl), % silently fails if running
+    lager_reset(LReset),
     %% Kill the named process signifying this is running
     unlink(Pid),
     Ref = erlang:monitor(process, Pid),
@@ -147,7 +164,6 @@ init([nosasl]) ->
 handle_event(Event, S=#eh_state{buf=Buf}) ->
     NewBuf = case parse_event(Event) of
         ignore -> Buf;
-        ct_pal -> [Event|Buf];
         sasl -> [{sasl, {calendar:local_time(), Event}}|Buf];
         error_logger -> [{error_logger, {erlang:universaltime(), Event}}|Buf]
     end,
@@ -158,6 +174,13 @@ handle_event(_, S) ->
 handle_info(_, State) ->
     {ok, State}.
 
+handle_call({lager, _} = Event, S=#eh_state{buf=Buf}) ->
+    %% lager events come in from our fake handler, pre-filtered.
+    {ok, ok, S#eh_state{buf=[Event | Buf]}};
+handle_call({ct_pal, ignore}, S) ->
+    {ok, ok, S};
+handle_call({ct_pal, _}=Event, S=#eh_state{buf=Buf}) ->
+    {ok, ok, S#eh_state{buf=[Event | Buf]}};
 handle_call(ignore, State) ->
     {ok, ok, State#eh_state{buf=[]}};
 handle_call(flush, S=#eh_state{buf=Buf}) ->
@@ -170,6 +193,8 @@ handle_call(flush, S=#eh_state{buf=Buf}) ->
                 sasl_report:write_report(standard_io, SASLType, Event);
             ct_pal ->
                 io:format(user, Event, []);
+            lager ->
+                io:put_chars(user, Event);
             _ ->
                 ignore
          end || {T, Event} <- lists:reverse(Buf)],
@@ -206,8 +231,6 @@ call_handlers(Msg, Handlers) ->
     ok.
 
 parse_event({_, GL, _}) when node(GL) =/= node() -> ignore;
-parse_event({ct_pal, ignore}) -> ignore;
-parse_event({ct_pal, _Str}) -> ct_pal;
 parse_event({info_report, _GL, {_Pid, progress, _Args}}) -> sasl;
 parse_event({error_report, _GL, {_Pid, supervisor_report, _Args}}) -> sasl;
 parse_event({error_report, _GL, {_Pid, crash_report, _Args}}) -> sasl;
@@ -218,3 +241,61 @@ parse_event({error_report, _GL, {_Pid, _Format, _Args}}) -> error_logger;
 parse_event({info_report, _GL, {_Pid, _Format, _Args}}) -> error_logger;
 parse_event({warning_report, _GL, {_Pid, _Format, _Args}}) -> error_logger;
 parse_event(_) -> sasl. % sasl does its own filtering
+
+setup_lager() ->
+    case application:load(lager) of
+        {error, {"no such file or directory", _}} ->
+            %% app not available
+            undefined;
+        _ -> % it's show time
+            %% Keep lager from throwing us out
+            WhiteList = application:get_env(lager, error_logger_whitelist, []),
+            application:set_env(lager, error_logger_whitelist, [?MODULE|WhiteList]),
+            InitConf = application:get_env(lager, handlers, ?DEFAULT_LAGER_HANDLER_CONF),
+            %% Add ourselves to the config
+            NewConf = case proplists:get_value(lager_console_backend, InitConf) of
+                undefined -> % no console backend running
+                    InitConf;
+                Opts ->
+                    [{cth_readable_lager_backend, Opts}
+                     | InitConf -- [{lager_console_backend, Opts}]]
+            end,
+            application:set_env(lager, handlers, NewConf),
+            %% check if lager is running and override!
+            case {whereis(lager_sup),
+                  proplists:get_value(cth_readable_lager_backend, NewConf)} of
+                {undefined, _} ->
+                    InitConf;
+                {_, undefined} ->
+                    InitConf;
+                {_, LOpts} ->
+                    swap_lager_handlers(lager_console_backend,
+                                        cth_readable_lager_backend, LOpts),
+                    InitConf
+            end
+    end.
+
+lager_reset(undefined) ->
+    ok;
+lager_reset(InitConf) ->
+    %% Reset the whitelist
+    WhiteList = application:get_env(lager, error_logger_whitelist, []),
+    application:set_env(lager, error_logger_whitelist, WhiteList--[?MODULE]),
+    %% Swap them handlers again
+    Opts = poplists:get_value(lager_console_backend, InitConf),
+    application:set_env(lager, handlers, InitConf),
+    case {whereis(lager_sup), Opts} of
+        {undefined, _} -> % not running
+            ok;
+        {_, undefined} -> % not scheduled
+            ok;
+        {_, _} ->
+            swap_lager_handlers(cth_readable_lager_backend,
+                                lager_console_backend, Opts)
+     end.
+
+swap_lager_handlers(Old, New, Opts) ->
+    gen_event:delete_handler(?DEFAULT_LAGER_SINK, Old, shutdown),
+    lager_app:start_handler(?DEFAULT_LAGER_SINK,
+                            New, Opts).
+
