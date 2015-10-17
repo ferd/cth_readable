@@ -10,6 +10,7 @@ There are currently two hooks:
 2. `cth_readable_failonly`, which only outputs error and SASL logs to the
    shell in case of failures. It also provides `cthr:pal/1-4` functions,
    working like `ct:pal/1-4`, but being silenceable by that hook.
+   Automatically handles lager.
 3. `cth_readable_nosasl`, which disables all SASL logging. It however requires
    to be run *before* `cth_readable_failonly` to work.
 
