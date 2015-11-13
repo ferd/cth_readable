@@ -1,6 +1,24 @@
 %% @doc Experimental
 -module(cthr).
 -include_lib("common_test/include/ct.hrl").
+
+-ifndef(MAX_VERBOSITY).
+-define(R15_FALLBACK, true).
+%% the log level is used as argument to any CT logging function
+-define(MIN_IMPORTANCE, 0 ).
+-define(LOW_IMPORTANCE, 25).
+-define(STD_IMPORTANCE, 50).
+-define(HI_IMPORTANCE,  75).
+-define(MAX_IMPORTANCE, 99).
+
+%% verbosity thresholds to filter out logging printouts
+-define(MIN_VERBOSITY, 0  ).  %% turn logging off
+-define(LOW_VERBOSITY, 25 ).
+-define(STD_VERBOSITY, 50 ).
+-define(HI_VERBOSITY,  75 ).
+-define(MAX_VERBOSITY, 100).
+-endif.
+
 -export([pal/1, pal/2, pal/3, pal/4]).
 
 pal(Format) ->
@@ -22,6 +40,23 @@ pal(X1,X2,X3) ->
     end,
     pal(Category,Importance,Format,Args).
 
+-ifdef(R15_FALLBACK).
+%% R15 and earlier didn't support log verbosity.
+
+pal(Category,_Importance,Format,Args) ->
+    case whereis(cth_readable_failonly) of
+        undefined -> % hook not running, passthrough
+            ct_logs:tc_pal(Category,Format,Args);
+        _ -> % hook running, take over
+            %% Send to error_logger, but only our own handler
+            gen_event:call(error_logger, cth_readable_failonly, {ct_pal, format(Category,Format,Args)}),
+            %% Send to ct group leader
+            ct_logs:tc_log(Category, Format, Args),
+            ok
+    end.
+
+-else.
+
 pal(Category,Importance,Format,Args) ->
     case whereis(cth_readable_failonly) of
         undefined -> % hook not running, passthrough
@@ -34,10 +69,11 @@ pal(Category,Importance,Format,Args) ->
             ok
     end.
 
+-endif.
 %%% Replicate CT stuff but don't output it
 format(Category, Importance, Format, Args) ->
-    VLvl = case ct_util:get_verbosity(Category) of
-        undefined -> 
+    VLvl = try ct_util:get_verbosity(Category) of
+        undefined ->
             ct_util:get_verbosity('$unspecified');
         {error,bad_invocation} ->
             ?MAX_VERBOSITY;
@@ -45,13 +81,18 @@ format(Category, Importance, Format, Args) ->
             ?MAX_VERBOSITY;
         Val ->
             Val
+    catch error:undef ->
+        ?MAX_VERBOSITY
     end,
     if Importance >= (100-VLvl) ->
-            Head = get_heading(Category),
-            io_lib:format(lists:concat([Head,Format,"\n\n"]), Args);
+            format(Category, Format, Args);
         true ->
             ignore
     end.
+
+format(Category, Format, Args) ->
+    Head = get_heading(Category),
+    io_lib:format(lists:concat([Head,Format,"\n\n"]), Args).
 
 get_heading(default) ->
     io_lib:format("\n-----------------------------"

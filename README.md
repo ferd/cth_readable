@@ -29,16 +29,14 @@ To use it, add to your project as:
 {ct_compile_opts, [{parse_transform, cth_readable_transform}]}.
 
 {profiles, [
-    {test,
-    [{deps, [
-        {cth_readable,
-        {git, "https://github.com/ferd/cth_readable.git", {branch, "master"}}}
-    ]}]}
+    {test, [{deps, [cth_readable]}]}
 ]}.
 ```
 
 ## Changelog
 
-### 1.0.0
+1.0.1:
+- support for CT versions in Erlang copies older than R16
 
+1.0.0:
 - initial stable release
