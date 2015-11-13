@@ -54,8 +54,10 @@ id(_Opts) ->
 %% @doc Always called before any other callback function. Use this to initiate
 %% any common state.
 init(Id, _Opts) ->
-    %% ct:pal replacement needs to know if this hook is enabled -- we use a named proc for that
-    Named = spawn_link(fun() -> timer:sleep(infinity) end),
+    %% ct:pal replacement needs to know if this hook is enabled -- we use a named proc for that.
+    %% Use a `receive' -- if people mock `timer' or reload it, it can kill the
+    %% hook and then CT as a whole.
+    Named = spawn_link(fun() -> receive after infinity -> ok end end),
     register(?MODULE, Named),
     error_logger:tty(false), % TODO check if on to begin with
     application:load(sasl), % TODO do this optionally?
