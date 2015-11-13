@@ -37,3 +37,8 @@ To use it, add to your project as:
 ]}.
 ```
 
+## Changelog
+
+### 1.0.0
+
+- initial stable release
