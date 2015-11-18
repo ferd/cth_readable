@@ -33,6 +33,28 @@ To use it, add to your project as:
 ]}.
 ```
 
+If your lager handler has a custom formatter and you want that formatter
+to take effect, rather than using a configuration such as:
+
+```erlang
+{lager, [
+  {handlers, [{lager_console_backend,
+                [info, {custom_formatter, [{app, "some-val"}]}]}
+             ]}
+]}.
+```
+
+Use:
+
+```erlang
+{lager, [
+  {handlers, [{cth_readable_lager_backend,
+                [info, {custom_formatter, [{app, "some-val"}]}]}
+             ]}
+]}.
+```
+It will let you have both proper formatting and support for arbitrary configs.
+
 ## Changelog
 
 1.0.1:
