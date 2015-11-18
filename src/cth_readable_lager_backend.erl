@@ -94,6 +94,7 @@ handle_event({log, Message},
             %% We also need to do a call so that lager doesn't reforward the
             %% event in an infinite loop.
             spawn(fun() -> gen_event:call(error_logger, cth_readable_failonly, {lager, Formatted}) end),
+            ct_logs:tc_log(default, Formatted, []),
             {ok, State};
         false ->
             {ok, State}
