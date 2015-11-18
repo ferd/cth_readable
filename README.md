@@ -57,6 +57,10 @@ It will let you have both proper formatting and support for arbitrary configs.
 
 ## Changelog
 
+1.1.0:
+- support for better looking EUnit logs
+- support for lager backends logging to HTML files
+
 1.0.1:
 - support for CT versions in Erlang copies older than R16
 
