@@ -20,18 +20,24 @@ There are currently the following hooks:
 ![example](http://i.imgur.com/dDFNxZr.png)
 ![example](http://i.imgur.com/RXZBG7H.png)
 
-## Usage
+## Usage with rebar3
 
-To use it, add to your project as:
+Supported and enabled by default.
+
+## Usage with  rebar2.x
+
+Add the following to your `rebar.config`:
 
 ```erlang
+{deps, [
+    {cth_readable, {git, "https://github.com/ferd/cth_readable.git", {tag, "v1.1.0"}}}
+    ]}.
+
 {ct_opts, [{ct_hooks, [cth_readable_failonly, cth_readable_shell]}]}.
 {ct_compile_opts, [{parse_transform, cth_readable_transform}]}.
-
-{profiles, [
-    {test, [{deps, [cth_readable]}]}
-]}.
 ```
+
+## Usage with lager
 
 If your lager handler has a custom formatter and you want that formatter
 to take effect, rather than using a configuration such as:
@@ -53,7 +59,9 @@ Use:
              ]}
 ]}.
 ```
-It will let you have both proper formatting and support for arbitrary configs.
+
+It will let you have both proper formatting and support for arbitrary
+configurations.
 
 ## Changelog
 
