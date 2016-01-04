@@ -284,7 +284,7 @@ lager_reset(InitConf) ->
     WhiteList = application:get_env(lager, error_logger_whitelist, []),
     application:set_env(lager, error_logger_whitelist, WhiteList--[?MODULE]),
     %% Swap them handlers again
-    Opts = poplists:get_value(lager_console_backend, InitConf),
+    Opts = proplists:get_value(lager_console_backend, InitConf),
     application:set_env(lager, handlers, InitConf),
     case {whereis(lager_sup), Opts} of
         {undefined, _} -> % not running
