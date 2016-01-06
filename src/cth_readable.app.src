@@ -1,6 +1,6 @@
 {application, cth_readable,
  [{description, "Common Test hooks for more readable logs"},
-  {vsn, "1.1.0"},
+  {vsn, "1.1.1"},
   {registered, [cth_readable_failonly]},
   {applications,
    [kernel,
@@ -10,7 +10,7 @@
   {env,[]},
   {modules, []},
 
-  {contributors, ["Fred Hebert"]},
+  {maintainers, ["Fred Hebert"]},
   {licenses, ["BSD"]},
   {links, [{"Github", "https://github.com/ferd/cth_readable"}]}
  ]}.

@@ -65,6 +65,9 @@ configurations.
 
 ## Changelog
 
+1.1.1:
+- fix typo of `poplist -> proplist`, thanks to @egobrain
+
 1.1.0:
 - support for better looking EUnit logs
 - support for lager backends logging to HTML files
