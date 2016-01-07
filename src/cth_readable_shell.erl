@@ -4,10 +4,6 @@
 -define(FAILC, red).
 -define(SKIPC, magenta).
 
-%-define(OK(Suite,Str,Args), io:format(user, "%%% ~p ==> "++colorize(?OKC, Str++"~n"), [Suite|Args])).
-%-define(FAIL(Suite,Str,Args), io:format(user, "%%% ~p ==> "++colorize(?FAILC, Str++"~n"), [Suite|Args])).
-%-define(SKIP(Suite,Str,Args), io:format(user, "%%% ~p ==> "++colorize(?SKIPC, Str++"~n"), [Suite|Args])).
-
 -define(OK(Suite, CasePat, CaseArgs),
         ?CASE(Suite, CasePat, ?OKC, "OK", CaseArgs)).
 -define(SKIP(Suite, CasePat, CaseArgs, Reason),
@@ -121,15 +117,9 @@ terminate(_State) ->
     ok.
 
 %%% Helpers
-colorize(red, Txt) -> colorize(31, Txt);
-colorize(green, Txt) -> colorize(32, Txt);
-colorize(magenta, Txt) -> colorize(35, Txt);
-colorize(Code, Txt) when is_integer(Code) ->
-    lists:flatten([
-        io_lib:format("\033[0;~Bm",[Code]),
-        Txt,
-        "\033[0m"
-    ]).
+colorize(red, Txt) -> cf:format("~!r~s~!!", [Txt]);
+colorize(green, Txt) -> cf:format("~!g~s~!!", [Txt]);
+colorize(magenta, Txt) -> cf:format("~!m~s~!!",[Txt]).
 
 maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assert_failed
                                                     ; Type =:= assert ->

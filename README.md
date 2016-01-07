@@ -64,6 +64,8 @@ It will let you have both proper formatting and support for arbitrary
 configurations.
 
 ## Changelog
+1.2.0:
+- move to `cf` library for color output, adding support for 'dumb' terminals
 
 1.1.1:
 - fix typo of `poplist -> proplist`, thanks to @egobrain
