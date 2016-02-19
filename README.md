@@ -64,6 +64,9 @@ It will let you have both proper formatting and support for arbitrary
 configurations.
 
 ## Changelog
+1.2.1:
+- handle failures of parse transforms by just ignoring the culprit files.
+
 1.2.0:
 - move to `cf` library for color output, adding support for 'dumb' terminals
 
