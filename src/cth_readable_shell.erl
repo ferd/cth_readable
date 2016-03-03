@@ -152,7 +152,7 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertMatch_faile
     Value = proplists:get_value(value, Props),
     [io_lib:format("~nFailure/Error: ?assertMatch(~s, ~s)~n", [Pattern, Expr]),
      io_lib:format("  expected: = ~s~n", [Pattern]),
-     io_lib:format("       got: ~p", [Value]),
+     io_lib:format("       got: ~p~n", [Value]),
      io_lib:format("      line: ~p", [proplists:get_value(line, Props)])];
 
 maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertNotMatch_failed
@@ -162,7 +162,7 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertNotMatch_fa
     Value = proplists:get_value(value, Props),
     [io_lib:format("~nFailure/Error: ?assertNotMatch(~s, ~s)~n", [Pattern, Expr]),
      io_lib:format("  expected not: = ~s~n", [Pattern]),
-     io_lib:format("           got:   ~p", [Value]),
+     io_lib:format("           got:   ~p~n", [Value]),
      io_lib:format("          line: ~p", [proplists:get_value(line, Props)])];
 
 maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertEqual_failed
@@ -173,7 +173,7 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertEqual_faile
     [io_lib:format("~nFailure/Error: ?assertEqual(~w, ~s)~n", [Expected,
                                                              Expr]),
      io_lib:format("  expected: ~p~n", [Expected]),
-     io_lib:format("       got: ~p", [Value]),
+     io_lib:format("       got: ~p~n", [Value]),
      io_lib:format("      line: ~p", [proplists:get_value(line, Props)])];
 
 maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertNotEqual_failed
@@ -183,7 +183,7 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertNotEqual_fa
     [io_lib:format("~nFailure/Error: ?assertNotEqual(~p, ~s)~n",
                    [Value, Expr]),
      io_lib:format("  expected not: == ~p~n", [Value]),
-     io_lib:format("           got:    ~p", [Value]),
+     io_lib:format("           got:    ~p~n", [Value]),
      io_lib:format("          line: ~p", [proplists:get_value(line, Props)])];
 
 maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertException_failed
@@ -195,12 +195,12 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertException_f
      case proplists:is_defined(unexpected_success, Props) of
          true ->
              [io_lib:format("  expected: exception ~s but nothing was raised~n", [Pattern]),
-              io_lib:format("       got: value ~p", [proplists:get_value(unexpected_success, Props)]),
+              io_lib:format("       got: value ~p~n", [proplists:get_value(unexpected_success, Props)]),
               io_lib:format("      line: ~p", [proplists:get_value(line, Props)])];
          false ->
              Ex = proplists:get_value(unexpected_exception, Props),
              [io_lib:format("  expected: exception ~s~n", [Pattern]),
-              io_lib:format("       got: exception ~p", [Ex]),
+              io_lib:format("       got: exception ~p~n", [Ex]),
               io_lib:format("      line: ~p", [proplists:get_value(line, Props)])]
      end];
 
@@ -212,7 +212,7 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertNotExceptio
     Ex = proplists:get_value(unexpected_exception, Props),
     [io_lib:format("~nFailure/Error: ?assertNotException(~s, ~s, ~s)~n", [Class, Term, Expr]),
      io_lib:format("  expected not: exception ~s~n", [Pattern]),
-     io_lib:format("           got: exception ~p", [Ex]),
+     io_lib:format("           got: exception ~p~n", [Ex]),
      io_lib:format("          line: ~p", [proplists:get_value(line, Props)])];
 
 maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= command_failed
@@ -222,7 +222,7 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= command_failed
     Status = proplists:get_value(status, Props),
     [io_lib:format("~nFailure/Error: ?cmdStatus(~p, ~p)~n", [Expected, Cmd]),
      io_lib:format("  expected: status ~p~n", [Expected]),
-     io_lib:format("       got: status ~p", [Status]),
+     io_lib:format("       got: status ~p~n", [Status]),
      io_lib:format("      line: ~p", [proplists:get_value(line, Props)])];
 
 maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertCmd_failed
@@ -232,7 +232,7 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertCmd_failed
     Status = proplists:get_value(status, Props),
     [io_lib:format("~nFailure/Error: ?assertCmdStatus(~p, ~p)~n", [Expected, Cmd]),
      io_lib:format("  expected: status ~p~n", [Expected]),
-     io_lib:format("       got: status ~p", [Status]),
+     io_lib:format("       got: status ~p~n", [Status]),
      io_lib:format("      line: ~p", [proplists:get_value(line, Props)])];
 
 maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertCmdOutput_failed
@@ -242,7 +242,7 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertCmdOutput_f
     Output = proplists:get_value(output, Props),
     [io_lib:format("~nFailure/Error: ?assertCmdOutput(~p, ~p)~n", [Expected, Cmd]),
      io_lib:format("  expected: ~p~n", [Expected]),
-     io_lib:format("       got: ~p", [Output]),
+     io_lib:format("       got: ~p~n", [Output]),
      io_lib:format("      line: ~p", [proplists:get_value(line, Props)])];
 
 maybe_eunit_format(Reason) ->
