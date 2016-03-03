@@ -64,6 +64,9 @@ It will let you have both proper formatting and support for arbitrary
 configurations.
 
 ## Changelog
+1.2.2:
+- fix output for assertions
+
 1.2.1:
 - handle failures of parse transforms by just ignoring the culprit files.
 
