@@ -64,6 +64,10 @@ It will let you have both proper formatting and support for arbitrary
 configurations.
 
 ## Changelog
+
+1.2.4:
+- unset suite name at the end of hooks run to prevent misreporting
+
 1.2.3:
 - correct `syntax_lib` to `syntax_tools` as an app dependency
 
