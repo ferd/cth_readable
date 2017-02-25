@@ -65,7 +65,7 @@ pre_end_per_suite(_Suite,Config,State) ->
 
 %% @doc Called after end_per_suite.
 post_end_per_suite(_Suite,_Config,Return,State) ->
-    {Return, State}.
+    {Return, State#state{suite=undefined}}.
 
 %% @doc Called before each init_per_group.
 pre_init_per_group(_Group,Config,State) ->
