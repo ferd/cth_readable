@@ -65,6 +65,9 @@ configurations.
 
 ## Changelog
 
+1.2.5:
+- support for `on_tc_skip/4` to fully prevent misreporting of skipped suites
+
 1.2.4:
 - unset suite name at the end of hooks run to prevent misreporting
 

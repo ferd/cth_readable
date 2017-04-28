@@ -18,7 +18,7 @@
 -export([post_end_per_testcase/4]).
 
 -export([on_tc_fail/3]).
--export([on_tc_skip/3]).
+-export([on_tc_skip/3, on_tc_skip/4]).
 
 -export([terminate/1]).
 
@@ -80,7 +80,11 @@ on_tc_fail(_TC, _Reason, State) ->
     State.
 
 %% @doc Called when a test case is skipped by either user action
-%% or due to an init function failing.
+%% or due to an init function failing. (>= 19.3)
+on_tc_skip(_Suite, _TC, _Reason, State) ->
+    State.
+%% @doc Called when a test case is skipped by either user action
+%% or due to an init function failing. (Pre-19.3)
 on_tc_skip(_TC, _Reason, State) ->
     State.
 
