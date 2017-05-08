@@ -36,7 +36,7 @@
 -export([post_end_per_testcase/4]).
 
 -export([on_tc_fail/3]).
--export([on_tc_skip/3]).
+-export([on_tc_skip/3, on_tc_skip/4]).
 
 -export([terminate/1]).
 
@@ -104,7 +104,16 @@ on_tc_fail(TC, Reason, State=#state{suite=Suite}) ->
     State.
 
 %% @doc Called when a test case is skipped by either user action
-%% or due to an init function failing.
+%% or due to an init function failing. (>= 19.3)
+on_tc_skip(Suite, {TC,Group}, Reason, State=#state{}) ->
+    ?SKIP(Suite, "~p (group ~p)", [TC, Group], Reason),
+    State#state{suite=Suite};
+on_tc_skip(Suite, TC, Reason, State=#state{}) ->
+    ?SKIP(Suite, "~p", [TC], Reason),
+    State#state{suite=Suite}.
+
+%% @doc Called when a test case is skipped by either user action
+%% or due to an init function failing. (Pre-19.3)
 on_tc_skip({TC,Group}, Reason, State=#state{suite=Suite}) ->
     ?SKIP(Suite, "~p (group ~p)", [TC, Group], Reason),
     State;

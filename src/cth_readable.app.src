@@ -1,6 +1,6 @@
 {application, cth_readable,
  [{description, "Common Test hooks for more readable logs"},
-  {vsn, "1.2.4"},
+  {vsn, "1.2.5"},
   {registered, [cth_readable_failonly]},
   {applications,
    [kernel,
