@@ -65,6 +65,10 @@ configurations.
 
 ## Changelog
 
+1.2.6:
+- report `end_per_testcase` errors as a non-critical failure when the test case passes
+- add in a (voluntarily failing) test suite to demo multiple output cases required
+
 1.2.5:
 - support for `on_tc_skip/4` to fully prevent misreporting of skipped suites
 
