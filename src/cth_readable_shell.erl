@@ -91,7 +91,15 @@ pre_init_per_testcase(_TC,Config,State) ->
 post_end_per_testcase(TC,_Config,ok,State=#state{suite=Suite}) ->
     ?OK(Suite, "~p", [TC]),
     {ok, State};
-post_end_per_testcase(_TC,_Config,Error,State) ->
+post_end_per_testcase(TC,Config,Error,State=#state{suite=Suite}) ->
+    case lists:keyfind(tc_status, 1, Config) of
+        {tc_status, ok} ->
+            %% Test case passed, but we still ended in an error
+            ?STACK(Suite, "~p", [TC], Error, ?SKIPC, "end_per_testcase FAILED");
+        _ ->
+            %% Test case failed, in which case on_tc_fail already reports it
+            ok
+    end,
     {Error, State}.
 
 %% @doc Called after post_init_per_suite, post_end_per_suite, post_init_per_group,
