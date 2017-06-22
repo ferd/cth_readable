@@ -40,7 +40,7 @@
 
 -export([terminate/1]).
 
--record(state, {id, suite}).
+-record(state, {id, suite, groups}).
 
 %% @doc Return a unique id for this CTH.
 id(_Opts) ->
@@ -53,7 +53,7 @@ init(Id, _Opts) ->
 
 %% @doc Called before init_per_suite is called.
 pre_init_per_suite(Suite,Config,State) ->
-    {Config, State#state{suite=Suite}}.
+    {Config, State#state{suite=Suite, groups=[]}}.
 
 %% @doc Called after init_per_suite.
 post_init_per_suite(_Suite,_Config,Return,State) ->
@@ -65,37 +65,37 @@ pre_end_per_suite(_Suite,Config,State) ->
 
 %% @doc Called after end_per_suite.
 post_end_per_suite(_Suite,_Config,Return,State) ->
-    {Return, State#state{suite=undefined}}.
+    {Return, State#state{suite=undefined, groups=[]}}.
 
 %% @doc Called before each init_per_group.
 pre_init_per_group(_Group,Config,State) ->
     {Config, State}.
 
 %% @doc Called after each init_per_group.
-post_init_per_group(_Group,_Config,Return,State) ->
-    {Return, State}.
+post_init_per_group(Group,_Config,Return, State=#state{groups=Groups}) ->
+    {Return, State#state{groups=[Group|Groups]}}.
 
 %% @doc Called after each end_per_group.
 pre_end_per_group(_Group,Config,State) ->
     {Config, State}.
 
 %% @doc Called after each end_per_group.
-post_end_per_group(_Group,_Config,Return,State) ->
-    {Return, State}.
+post_end_per_group(_Group,_Config,Return, State=#state{groups=Groups}) ->
+    {Return, State#state{groups=tl(Groups)}}.
 
 %% @doc Called before each test case.
 pre_init_per_testcase(_TC,Config,State) ->
     {Config, State}.
 
 %% @doc Called after each test case.
-post_end_per_testcase(TC,_Config,ok,State=#state{suite=Suite}) ->
-    ?OK(Suite, "~p", [TC]),
+post_end_per_testcase(TC,_Config,ok,State=#state{suite=Suite, groups=Groups}) ->
+    ?OK(Suite, "~s", [format_path(TC,Groups)]),
     {ok, State};
-post_end_per_testcase(TC,Config,Error,State=#state{suite=Suite}) ->
+post_end_per_testcase(TC,Config,Error,State=#state{suite=Suite, groups=Groups}) ->
     case lists:keyfind(tc_status, 1, Config) of
         {tc_status, ok} ->
             %% Test case passed, but we still ended in an error
-            ?STACK(Suite, "~p", [TC], Error, ?SKIPC, "end_per_testcase FAILED");
+            ?STACK(Suite, "~s", [format_path(TC,Groups)], Error, ?SKIPC, "end_per_testcase FAILED");
         _ ->
             %% Test case failed, in which case on_tc_fail already reports it
             ok
@@ -104,20 +104,20 @@ post_end_per_testcase(TC,Config,Error,State=#state{suite=Suite}) ->
 
 %% @doc Called after post_init_per_suite, post_end_per_suite, post_init_per_group,
 %% post_end_per_group and post_end_per_testcase if the suite, group or test case failed.
-on_tc_fail({TC,Group}, Reason, State=#state{suite=Suite}) ->
-    ?FAIL(Suite, "~p (group ~p)", [TC, Group], Reason),
+on_tc_fail({TC,_Group}, Reason, State=#state{suite=Suite, groups=Groups}) ->
+    ?FAIL(Suite, "~s", [format_path(TC,Groups)], Reason),
     State;
-on_tc_fail(TC, Reason, State=#state{suite=Suite}) ->
-    ?FAIL(Suite, "~p", [TC], Reason),
+on_tc_fail(TC, Reason, State=#state{suite=Suite, groups=Groups}) ->
+    ?FAIL(Suite, "~s", [format_path(TC,Groups)], Reason),
     State.
 
 %% @doc Called when a test case is skipped by either user action
 %% or due to an init function failing. (>= 19.3)
-on_tc_skip(Suite, {TC,Group}, Reason, State=#state{}) ->
-    ?SKIP(Suite, "~p (group ~p)", [TC, Group], Reason),
+on_tc_skip(Suite, {TC,_Group}, Reason, State=#state{groups=Groups}) ->
+    ?SKIP(Suite, "~s", [format_path(TC,Groups)], Reason),
     State#state{suite=Suite};
-on_tc_skip(Suite, TC, Reason, State=#state{}) ->
-    ?SKIP(Suite, "~p", [TC], Reason),
+on_tc_skip(Suite, TC, Reason, State=#state{groups=Groups}) ->
+    ?SKIP(Suite, "~s", [format_path(TC,Groups)], Reason),
     State#state{suite=Suite}.
 
 %% @doc Called when a test case is skipped by either user action
@@ -268,3 +268,6 @@ maybe_eunit_format(Reason) ->
 extract_exception_pattern(Str) ->
     ["{", Class, Term|_] = string:tokens(Str, ", "),
     {Class, Term}.
+
+format_path(TC, Groups) ->
+    string:join([atom_to_list(P) || P <- lists:reverse([TC|Groups])], ".").
