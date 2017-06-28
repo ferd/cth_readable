@@ -65,6 +65,9 @@ configurations.
 
 ## Changelog
 
+1.3.0:
+- display groups in test output. Thanks to @egobrain for the contribution
+
 1.2.6:
 - report `end_per_testcase` errors as a non-critical failure when the test case passes
 - add in a (voluntarily failing) test suite to demo multiple output cases required
