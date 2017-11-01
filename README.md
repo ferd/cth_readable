@@ -65,6 +65,9 @@ configurations.
 
 ## Changelog
 
+1.3.1:
+- Unicode support and OTP-21 readiness.
+
 1.3.0:
 - display groups in test output. Thanks to @egobrain for the contribution
 

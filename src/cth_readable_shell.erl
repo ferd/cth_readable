@@ -266,8 +266,18 @@ maybe_eunit_format(Reason) ->
     io_lib:format("~p", [Reason]).
 
 extract_exception_pattern(Str) ->
-    ["{", Class, Term|_] = string:tokens(Str, ", "),
+    ["{", Class, Term|_] = re:split(Str, "[, ]{1,2}", [unicode,{return,list}]),
     {Class, Term}.
 
 format_path(TC, Groups) ->
-    string:join([atom_to_list(P) || P <- lists:reverse([TC|Groups])], ".").
+    join([atom_to_list(P) || P <- lists:reverse([TC|Groups])], ".").
+
+%% string:join/2 copy; string:join/2 is getting obsoleted
+%% and replaced by lists:join/2, but lists:join/2 is too new
+%% for version support (only appeared in 19.0) so it cannot be
+%% used. Instead we just adopt join/2 locally and hope it works
+%% for most unicode use cases anyway.
+join([], Sep) when is_list(Sep) ->
+    [];
+join([H|T], Sep) ->
+    H ++ lists:append([Sep ++ X || X <- T]).
