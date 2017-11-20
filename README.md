@@ -65,6 +65,9 @@ configurations.
 
 ## Changelog
 
+1.3.2:
+- Fix deprecation warning on newer lagers due to old default config format
+
 1.3.1:
 - Unicode support and OTP-21 readiness.
 
