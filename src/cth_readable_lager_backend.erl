@@ -26,21 +26,24 @@
         code_change/3]).
 
 -record(state, {level :: {'mask', integer()},
+                out = user :: user | standard_error,
                 formatter :: atom(),
                 format_config :: any(),
                 colors=[] :: list()}).
 
 %-include("lager.hrl").
 -define(TERSE_FORMAT,[time, " ", color, "[", severity,"] ", message]).
+-define(DEFAULT_FORMAT_CONFIG, ?TERSE_FORMAT ++ [eol()]).
+-define(FORMAT_CONFIG_OFF, [{eol, eol()}]).
 
 %% @private
 init([Level]) when is_atom(Level) ->
-    init(Level);
-init([Level, true]) -> % for backwards compatibility
-    init([Level,{lager_default_formatter,[{eol, eol()}]}]);
-init([Level,false]) -> % for backwards compatibility
-    init([Level,{lager_default_formatter,?TERSE_FORMAT ++ [eol()]}]);
-init([Level,{Formatter,FormatterConfig}]) when is_atom(Formatter) ->
+    init([{level, Level}]);
+init([Level, true]) when is_atom(Level) -> % for backwards compatibility
+    init([{level, Level}, {formatter_config, ?FORMAT_CONFIG_OFF}]);
+init([Level, false]) when is_atom(Level) -> % for backwards compatibility
+    init([{level, Level}]);
+init(Options) when is_list(Options) ->
     Colors = case application:get_env(lager, colored) of
         {ok, true} ->
             {ok, LagerColors} = application:get_env(lager, colors),
@@ -48,12 +51,23 @@ init([Level,{Formatter,FormatterConfig}]) when is_atom(Formatter) ->
         _ -> []
     end,
 
+    Level = get_option(level, Options, undefined),
     %% edited out a bunch of console detection stuff, hopefully not breaking
     try lager_util:config_to_mask(Level) of
-        Levels ->
-            {ok, #state{level=Levels,
+        L ->
+            [UseErr, Formatter, Config] =
+                [get_option(K, Options, Default) || {K, Default} <- [{use_stderr, false},
+                                                                     {formatter, lager_default_formatter},
+                                                                     {formatter_config, ?DEFAULT_FORMAT_CONFIG}]
+                ],
+            Out = case UseErr of
+                      false -> user;
+                      true -> standard_error
+                  end,
+            {ok, #state{level=L,
+                        out=Out,
                         formatter=Formatter,
-                        format_config=FormatterConfig,
+                        format_config=Config,
                         colors=Colors}}
     catch
         _:_ ->
@@ -61,6 +75,12 @@ init([Level,{Formatter,FormatterConfig}]) when is_atom(Formatter) ->
     end;
 init(Level) ->
     init([Level,{lager_default_formatter,?TERSE_FORMAT ++ [eol()]}]).
+
+get_option(K, Options, Default) ->
+    case lists:keyfind(K, 1, Options) of
+        {K, V} -> V;
+        false -> Default
+    end.
 
 %% @private
 handle_call(get_loglevel, #state{level=Level} = State) ->
