@@ -65,6 +65,9 @@ configurations.
 
 ## Changelog
 
+1.3.3:
+- More fixes due to lager old default config formats
+
 1.3.2:
 - Fix deprecation warning on newer lagers due to old default config format
 
