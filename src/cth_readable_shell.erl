@@ -138,8 +138,11 @@ colorize(red, Txt) -> cf:format("~!r~s~!!", [Txt]);
 colorize(green, Txt) -> cf:format("~!g~s~!!", [Txt]);
 colorize(magenta, Txt) -> cf:format("~!m~s~!!",[Txt]).
 
-maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assert_failed
-                                                    ; Type =:= assert ->
+maybe_eunit_format({failed, Reason}) ->
+    maybe_eunit_format(Reason);
+
+maybe_eunit_format({{Type, Props}, _}) when Type =:= assert_failed
+                                            ; Type =:= assert ->
     Keys = proplists:get_keys(Props),
     HasEUnitProps = ([expression, value, line] -- Keys) =:= [],
     HasHamcrestProps = ([expected, actual, matcher, line] -- Keys) =:= [],
@@ -172,8 +175,8 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertMatch_faile
      io_lib:format("       got: ~p~n", [Value]),
      io_lib:format("      line: ~p", [proplists:get_value(line, Props)])];
 
-maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertNotMatch_failed
-                                                    ; Type =:= assertNotMatch  ->
+maybe_eunit_format({{Type, Props}, _}) when Type =:= assertNotMatch_failed
+                                            ; Type =:= assertNotMatch  ->
     Expr = proplists:get_value(expression, Props),
     Pattern = proplists:get_value(pattern, Props),
     Value = proplists:get_value(value, Props),
@@ -182,8 +185,8 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertNotMatch_fa
      io_lib:format("           got:   ~p~n", [Value]),
      io_lib:format("          line: ~p", [proplists:get_value(line, Props)])];
 
-maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertEqual_failed
-                                                    ; Type =:= assertEqual  ->
+maybe_eunit_format({{Type, Props}, _}) when Type =:= assertEqual_failed
+                                            ; Type =:= assertEqual  ->
     Expr = proplists:get_value(expression, Props),
     Expected = proplists:get_value(expected, Props),
     Value = proplists:get_value(value, Props),
@@ -193,8 +196,8 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertEqual_faile
      io_lib:format("       got: ~p~n", [Value]),
      io_lib:format("      line: ~p", [proplists:get_value(line, Props)])];
 
-maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertNotEqual_failed
-                                                    ; Type =:= assertNotEqual ->
+maybe_eunit_format({{Type, Props}, _}) when Type =:= assertNotEqual_failed
+                                            ; Type =:= assertNotEqual ->
     Expr = proplists:get_value(expression, Props),
     Value = proplists:get_value(value, Props),
     [io_lib:format("~nFailure/Error: ?assertNotEqual(~p, ~s)~n",
@@ -203,8 +206,8 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertNotEqual_fa
      io_lib:format("           got:    ~p~n", [Value]),
      io_lib:format("          line: ~p", [proplists:get_value(line, Props)])];
 
-maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertException_failed
-                                                    ; Type =:= assertException ->
+maybe_eunit_format({{Type, Props}, _}) when Type =:= assertException_failed
+                                            ; Type =:= assertException ->
     Expr = proplists:get_value(expression, Props),
     Pattern = proplists:get_value(pattern, Props),
     {Class, Term} = extract_exception_pattern(Pattern), % I hate that we have to do this, why not just give DATA
@@ -221,8 +224,8 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertException_f
               io_lib:format("      line: ~p", [proplists:get_value(line, Props)])]
      end];
 
-maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertNotException_failed
-                                                    ; Type =:= assertNotException ->
+maybe_eunit_format({{Type, Props}, _}) when Type =:= assertNotException_failed
+                                            ; Type =:= assertNotException ->
     Expr = proplists:get_value(expression, Props),
     Pattern = proplists:get_value(pattern, Props),
     {Class, Term} = extract_exception_pattern(Pattern), % I hate that we have to do this, why not just give DAT
@@ -232,8 +235,8 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertNotExceptio
      io_lib:format("           got: exception ~p~n", [Ex]),
      io_lib:format("          line: ~p", [proplists:get_value(line, Props)])];
 
-maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= command_failed
-                                                    ; Type =:= command ->
+maybe_eunit_format({{Type, Props}, _}) when Type =:= command_failed
+                                            ; Type =:= command ->
     Cmd = proplists:get_value(command, Props),
     Expected = proplists:get_value(expected_status, Props),
     Status = proplists:get_value(status, Props),
@@ -242,8 +245,8 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= command_failed
      io_lib:format("       got: status ~p~n", [Status]),
      io_lib:format("      line: ~p", [proplists:get_value(line, Props)])];
 
-maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertCmd_failed
-                                                    ; Type =:= assertCmd ->
+maybe_eunit_format({{Type, Props}, _}) when Type =:= assertCmd_failed
+                                            ; Type =:= assertCmd ->
     Cmd = proplists:get_value(command, Props),
     Expected = proplists:get_value(expected_status, Props),
     Status = proplists:get_value(status, Props),
@@ -252,8 +255,8 @@ maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertCmd_failed
      io_lib:format("       got: status ~p~n", [Status]),
      io_lib:format("      line: ~p", [proplists:get_value(line, Props)])];
 
-maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertCmdOutput_failed
-                                                    ; Type =:= assertCmdOutput ->
+maybe_eunit_format({{Type, Props}, _}) when Type =:= assertCmdOutput_failed
+                                            ; Type =:= assertCmdOutput ->
     Cmd = proplists:get_value(command, Props),
     Expected = proplists:get_value(expected_output, Props),
     Output = proplists:get_value(output, Props),
