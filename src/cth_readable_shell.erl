@@ -165,8 +165,8 @@ maybe_eunit_format({{Type, Props}, _}) when Type =:= assert_failed
             [io_lib:format("~nFailure/Error: unknown assert: ~p", [Props])]
     end;
 
-maybe_eunit_format({failed, {{Type, Props}, _}}) when Type =:= assertMatch_failed
-                                                    ; Type =:= assertMatch ->
+maybe_eunit_format({{Type, Props}, _}) when Type =:= assertMatch_failed
+                                          ; Type =:= assertMatch ->
     Expr = proplists:get_value(expression, Props),
     Pattern = proplists:get_value(pattern, Props),
     Value = proplists:get_value(value, Props),

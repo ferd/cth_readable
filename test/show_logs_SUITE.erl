@@ -1,11 +1,12 @@
 -module(show_logs_SUITE).
 -compile(export_all).
 -include_lib("common_test/include/ct.hrl").
+-include_lib("eunit/include/eunit.hrl").
 
 all() -> [{group, works}, {group, fails}, skip].
 
 groups() ->
-    [{all, [], [error_logger, sasl, ctpal]},
+    [{all, [], [error_logger, sasl, ctpal, eunit]},
      {works, [], [{group, all}]},
      {fails, [], [{group, all}]}].
 
@@ -44,6 +45,10 @@ sasl(Config) ->
 ctpal(Config) ->
     ct:pal("ct:pal call"),
     ?config(fail, Config) andalso error(fail).
+
+eunit(Config) ->
+    ?assertMatch(false, ?config(fail, Config)),
+    ok.
 
 skip(_Config) ->
     ok.

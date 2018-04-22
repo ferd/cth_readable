@@ -65,6 +65,9 @@ configurations.
 
 ## Changelog
 
+1.3.4:
+- Restore proper eunit assertion formatting
+
 1.3.3:
 - More fixes due to lager old default config formats
 
