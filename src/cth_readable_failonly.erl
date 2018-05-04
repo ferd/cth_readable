@@ -62,6 +62,7 @@ init(Id, _Opts) ->
     error_logger:tty(false), % TODO check if on to begin with
     application:load(sasl), % TODO do this optionally?
     LagerReset = setup_lager(),
+    ok = error_logger:start(),
     case application:get_env(sasl, sasl_error_logger) of
         {ok, tty} ->
             ok = gen_event:add_handler(error_logger, ?MODULE, [sasl]),
