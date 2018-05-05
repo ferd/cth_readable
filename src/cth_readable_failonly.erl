@@ -4,8 +4,9 @@
                 sasl_reset,
                 lager_reset,
                 handlers=[],
-                named}).
--record(eh_state, {buf = [], sasl=false}).
+                named,
+                has_logger}).
+-record(eh_state, {buf = [], sasl=false, logger_cfg=undefined}).
 
 %% Callbacks
 -export([id/1]).
@@ -29,10 +30,14 @@
 
 -export([terminate/1]).
 
-%% Handler API
+%% Error Logger Handler API
 -export([init/1,
          handle_event/2, handle_call/2, handle_info/2,
          terminate/2, code_change/3]).
+
+%% Logger API
+-export([log/2,
+         adding_handler/2, removing_handler/2]).
 
 -define(DEFAULT_LAGER_SINK, lager_event).
 -define(DEFAULT_LAGER_HANDLER_CONF,
@@ -59,19 +64,35 @@ init(Id, _Opts) ->
     %% hook and then CT as a whole.
     Named = spawn_link(fun() -> receive after infinity -> ok end end),
     register(?MODULE, Named),
-    error_logger:tty(false), % TODO check if on to begin with
-    application:load(sasl), % TODO do this optionally?
+    HasLogger = erlang:function_exported(logger, module_info, 0), % Pre OTP-21 or not
+    case HasLogger of
+        false ->
+            error_logger:tty(false), % TODO check if on to begin with
+            application:load(sasl); % TODO do this optionally?
+        true ->
+            %% Assume logger_std_h is running // TODO: check if on to begin with
+            logger:add_handler_filter(logger_std_h, ?MODULE, {fun(_,_) -> stop end, nostate}),
+            ok
+    end,
     LagerReset = setup_lager(),
-    ok = error_logger:start(),
     case application:get_env(sasl, sasl_error_logger) of
-        {ok, tty} ->
+        {ok, tty} when not HasLogger ->
             ok = gen_event:add_handler(error_logger, ?MODULE, [sasl]),
             application:set_env(sasl, sasl_error_logger, false),
             {ok, #state{id=Id, sasl_reset={reset, tty}, lager_reset=LagerReset,
-                        handlers=[?MODULE], named=Named}};
+                        handlers=[?MODULE], named=Named, has_logger=HasLogger}};
+        {ok, tty} when HasLogger ->
+            logger:add_handler(?MODULE, ?MODULE, #{sasl => sasl}),
+            {ok, #state{id=Id, lager_reset=LagerReset, handlers=[?MODULE],
+                        named=Named, has_logger=HasLogger}};
+        _ when HasLogger ->
+            logger:add_handler(?MODULE, ?MODULE, #{sasl => nosasl}),
+            {ok, #state{id=Id, lager_reset=LagerReset, handlers=[?MODULE],
+                        named=Named, has_logger=HasLogger}};
         _ ->
             ok = gen_event:add_handler(error_logger, ?MODULE, [nosasl]),
-            {ok, #state{id=Id, lager_reset=LagerReset, handlers=[?MODULE], named=Named}}
+            {ok, #state{id=Id, lager_reset=LagerReset, handlers=[?MODULE],
+                        named=Named, has_logger=HasLogger}}
     end.
 
 %% @doc Called before init_per_suite is called. 
@@ -84,7 +105,7 @@ post_init_per_suite(_Suite,_Config,Return,State) ->
 
 %% @doc Called before end_per_suite.
 pre_end_per_suite(_Suite,Config,State) ->
-    call_handlers(ignore, State#state.handlers),
+    call_handlers(ignore, State),
     {Config, State}.
 
 %% @doc Called after end_per_suite.
@@ -93,7 +114,7 @@ post_end_per_suite(_Suite,_Config,Return,State) ->
 
 %% @doc Called before each init_per_group.
 pre_init_per_group(_Group,Config,State) ->
-    call_handlers(ignore, State#state.handlers),
+    call_handlers(ignore, State),
     {Config, State}.
 
 %% @doc Called after each init_per_group.
@@ -110,7 +131,7 @@ post_end_per_group(_Group,_Config,Return,State) ->
 
 %% @doc Called before each test case.
 pre_init_per_testcase(_TC,Config,State) ->
-    call_handlers(ignore, State#state.handlers),
+    call_handlers(ignore, State),
     {Config, State}.
 
 %% @doc Called after each test case.
@@ -122,40 +143,46 @@ post_end_per_testcase(_TC,_Config,Error,State) ->
 %% @doc Called after post_init_per_suite, post_end_per_suite, post_init_per_group,
 %% post_end_per_group and post_end_per_testcase if the suite, group or test case failed.
 on_tc_fail({_TC,_Group}, _Reason, State=#state{}) ->
-    call_handlers(flush, State#state.handlers),
+    call_handlers(flush, State),
     State;
 on_tc_fail(_TC, _Reason, State=#state{}) ->
-    call_handlers(flush, State#state.handlers),
+    call_handlers(flush, State),
     State.
 
 %% @doc Called when a test case is skipped by either user action
 %% or due to an init function failing (>= 19.3)
 on_tc_skip(_Suite, {_TC,_Group}, _Reason, State=#state{}) ->
-    call_handlers(flush, State#state.handlers),
+    call_handlers(flush, State),
     State;
 on_tc_skip(_Suite, _TC, _Reason, State=#state{}) ->
-    call_handlers(flush, State#state.handlers),
+    call_handlers(flush, State),
     State.
 
 %% @doc Called when a test case is skipped by either user action
 %% or due to an init function failing (pre 19.3)
 on_tc_skip({_TC,_Group}, _Reason, State=#state{}) ->
-    call_handlers(flush, State#state.handlers),
+    call_handlers(flush, State),
     State;
 on_tc_skip(_TC, _Reason, State=#state{}) ->
-    call_handlers(flush, State#state.handlers),
+    call_handlers(flush, State),
     State.
 
 %% @doc Called when the scope of the CTH is done
 terminate(_State=#state{handlers=Handlers, sasl_reset=SReset,
-                        lager_reset=LReset, named=Pid}) ->
-    _ = [gen_event:delete_handler(error_logger, Handler, shutdown)
-         || Handler <- Handlers],
+                        lager_reset=LReset, named=Pid, has_logger=HasLogger}) ->
+
+    if HasLogger ->
+           logger:remove_handler(?MODULE),
+           logger:remove_handler_filter(logger_std_h, ?MODULE);
+       not HasLogger ->
+           _ = [gen_event:delete_handler(error_logger, Handler, shutdown)
+                || Handler <- Handlers]
+    end,
     case SReset of
         {reset, Val} -> application:set_env(sasl, sasl_error_logger, Val);
         undefined -> ok
     end,
-    error_logger:tty(true),
+    not HasLogger andalso error_logger:tty(true),
     application:unload(sasl), % silently fails if running
     lager_reset(LReset),
     %% Kill the named process signifying this is running
@@ -166,16 +193,17 @@ terminate(_State=#state{handlers=Handlers, sasl_reset=SReset,
         {'DOWN', Ref, process, Pid, shutdown} -> ok
     end.
 
-%%%%%%%%%%%%%
+%%%%%%%%%%%%% ERROR_LOGGER HANDLER %%%%%%%%%%%%
 
 init([sasl]) ->
-    {ok, #eh_state{sasl=true}};
+    {ok, #eh_state{sasl=true, logger_cfg=maybe_steal_logger_config()}};
 init([nosasl]) ->
-    {ok, #eh_state{sasl=false}}.
+    {ok, #eh_state{sasl=false, logger_cfg=maybe_steal_logger_config()}}.
 
 handle_event(Event, S=#eh_state{buf=Buf}) ->
     NewBuf = case parse_event(Event) of
         ignore -> Buf;
+        logger -> [{logger, Event} | Buf];
         sasl -> [{sasl, {calendar:local_time(), Event}}|Buf];
         error_logger -> [{error_logger, {erlang:universaltime(), Event}}|Buf]
     end,
@@ -195,7 +223,7 @@ handle_call({ct_pal, _}=Event, S=#eh_state{buf=Buf}) ->
     {ok, ok, S#eh_state{buf=[Event | Buf]}};
 handle_call(ignore, State) ->
     {ok, ok, State#eh_state{buf=[]}};
-handle_call(flush, S=#eh_state{buf=Buf}) ->
+handle_call(flush, S=#eh_state{buf=Buf, logger_cfg=Cfg}) ->
     ShowSASL = sasl_running() orelse sasl_ran(Buf) andalso S#eh_state.sasl,
     SASLType = get_sasl_error_logger_type(),
     _ = [case T of
@@ -207,11 +235,13 @@ handle_call(flush, S=#eh_state{buf=Buf}) ->
                 io:format(user, Event, []);
             lager ->
                 io:put_chars(user, Event);
-            _ ->
+            logger ->
+                Bin = logger_h_common:log_to_binary(Event,Cfg),
+                io:put_chars(user, Bin);
+            _ -> io:format(user, "unknown type ~p~n",[T]),
                 ignore
          end || {T, Event} <- lists:reverse(Buf)],
     {ok, ok, S#eh_state{buf=[]}}.
-
 
 code_change(_, _, State) ->
     {ok, State}.
@@ -219,7 +249,35 @@ code_change(_, _, State) ->
 terminate(_, _) ->
     ok.
 
-%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%% LOGGER %%%%%%%%%%%%%%%%%%%
+adding_handler(_Id, Config = #{sasl := SASL}) ->
+    {ok, Pid} = gen_event:start({local, cth_readable_logger}, []),
+    gen_event:add_handler(cth_readable_logger, ?MODULE, [SASL]),
+    {ok, Config#{cth_readable_logger => Pid}}.
+
+removing_handler(_Id, #{cth_readable_logger := Pid}) ->
+    try gen_event:stop(Pid, shutdown, 1000) of
+        ok -> ok
+    catch
+        error:noproc -> ok;
+        error:timeout -> at_least_we_tried
+    end.
+
+log(Msg, #{cth_readable_logger := Pid}) ->
+    gen_event:notify(Pid, Msg).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_steal_logger_config() ->
+    case erlang:function_exported(logger, module_info, 0) of
+        false -> undefined;
+        true ->
+            {ok, {_,Cfg}} = logger:get_handler_config(logger_std_h),
+            maps:with([formatter], Cfg) % only keep the essential
+    end.
+
 sasl_running() ->
     length([1 || {sasl, _, _} <- application:which_applications()]) > 0.
 
@@ -237,8 +295,11 @@ sasl_ran([{sasl, {_DateTime, {info_report,_,
             {_,progress, [{application,sasl},{started_at,_}|_]}}}}|_]) -> true;
 sasl_ran([_|T]) -> sasl_ran(T).
 
-call_handlers(Msg, Handlers) ->
-    _ = [gen_event:call(error_logger, Handler, Msg, 300000)
+call_handlers(Msg, #state{handlers=Handlers, has_logger=HasLogger}) ->
+    Name = if HasLogger -> cth_readable_logger;
+              not HasLogger -> error_logger
+           end,
+    _ = [gen_event:call(Name, Handler, Msg, 300000)
          || Handler <- Handlers],
     ok.
 
@@ -252,6 +313,7 @@ parse_event({warning_msg, _GL, {_Pid, _Format, _Args}}) -> error_logger;
 parse_event({error_report, _GL, {_Pid, _Format, _Args}}) -> error_logger;
 parse_event({info_report, _GL, {_Pid, _Format, _Args}}) -> error_logger;
 parse_event({warning_report, _GL, {_Pid, _Format, _Args}}) -> error_logger;
+parse_event(Map) when is_map(Map) -> logger;
 parse_event(_) -> sasl. % sasl does its own filtering
 
 setup_lager() ->

@@ -2,11 +2,12 @@
 -compile(export_all).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").
+-include("macro_wrap.hrl").
 
 all() -> [{group, works}, {group, fails}, skip].
 
 groups() ->
-    [{all, [], [error_logger, sasl, ctpal, eunit]},
+    [{all, [], [error_logger, logger, sasl, ctpal, eunit]},
      {works, [], [{group, all}]},
      {fails, [], [{group, all}]}].
 
@@ -22,6 +23,11 @@ end_per_group(_, Config) ->
 
 init_per_testcase(skip, _Config) ->
     {skip, manual};
+init_per_testcase(logger, Config) ->
+    case erlang:function_exported(logger, module_info, 0) of
+        true -> Config;
+        false -> {skip, not_supported}
+    end;
 init_per_testcase(_, Config) ->
     Config.
 
@@ -33,6 +39,15 @@ error_logger(Config) ->
     error_logger:warning_msg("warn\n"),
     error_logger:info_msg("info\n"),
     ?config(fail, Config) andalso error(fail).
+
+logger(Config) ->
+    logger:alert("alert\n"),
+    logger:critical("critical\n"),
+    ?LOG_ERROR("error\n"),
+    ?LOG_WARNING("warn\n"),
+    ?LOG_INFO("info\n"),
+    ?config(fail, Config) andalso error(fail).
+
 
 sasl(Config) ->
     application:start(sasl),
