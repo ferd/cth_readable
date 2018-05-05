@@ -7,12 +7,14 @@ There are currently the following hooks:
 
 1. `cth_readable_shell`, which shows failure stacktraces in the shell and
    otherwise shows successes properly, in color.
-2. `cth_readable_failonly`, which only outputs error and SASL logs to the
+2. `cth_readable_compact_shell`, which is similar to the previous ones, but
+   only ouputs a period (`.`) for each successful test
+3. `cth_readable_failonly`, which only outputs error and SASL logs to the
    shell in case of failures. It also provides `cthr:pal/1-4` functions,
    working like `ct:pal/1-4`, but being silenceable by that hook. A parse
    transform exists to automatically convert `ct:pal/1-3` into `cthr:pal/1-3`.
    Also automatically handles lager.
-3. `cth_readable_nosasl`, which disables all SASL logging. It however requires
+4. `cth_readable_nosasl`, which disables all SASL logging. It however requires
    to be run *before* `cth_readable_failonly` to work.
 
 ## What it looks like
@@ -64,6 +66,10 @@ It will let you have both proper formatting and support for arbitrary
 configurations.
 
 ## Changelog
+
+1.4.0:
+- OTP-21 support (Logger interface)
+- Add compact shell output handler
 
 1.3.4:
 - Restore proper eunit assertion formatting
