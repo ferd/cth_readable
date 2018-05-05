@@ -1,4 +1,4 @@
--module(cth_readable_shell).
+-module(cth_readable_compact_shell).
 -import(cth_readable_helpers, [format_path/2, colorize/2, maybe_eunit_format/1]).
 
 -define(OKC, green).
@@ -17,7 +17,10 @@
          io:format(user, "%%% ~p ==> "++colorize(Color, maybe_eunit_format(Reason))++"~n", [Suite])
         end).
 -define(CASE(Suite, CasePat, Color, Res, Args),
-        io:format(user, "%%% ~p ==> "++CasePat++": "++colorize(Color, Res)++"~n", [Suite | Args])).
+        case Res of
+            "OK" -> io:format(user, colorize(Color, "."), []);
+            _ -> io:format(user, "~n%%% ~p ==> "++CasePat++": "++colorize(Color, Res)++"~n", [Suite | Args])
+        end).
 
 %% Callbacks
 -export([id/1]).
@@ -54,6 +57,7 @@ init(Id, _Opts) ->
 
 %% @doc Called before init_per_suite is called.
 pre_init_per_suite(Suite,Config,State) ->
+    io:format(user, "%%% ~p: ", [Suite]),
     {Config, State#state{suite=Suite, groups=[]}}.
 
 %% @doc Called after init_per_suite.
@@ -66,6 +70,7 @@ pre_end_per_suite(_Suite,Config,State) ->
 
 %% @doc Called after end_per_suite.
 post_end_per_suite(_Suite,_Config,Return,State) ->
+    io:format(user, "~n", []),
     {Return, State#state{suite=undefined, groups=[]}}.
 
 %% @doc Called before each init_per_group.

@@ -226,6 +226,7 @@ handle_call(ignore, State) ->
 handle_call(flush, S=#eh_state{buf=Buf, logger_cfg=Cfg}) ->
     ShowSASL = sasl_running() orelse sasl_ran(Buf) andalso S#eh_state.sasl,
     SASLType = get_sasl_error_logger_type(),
+    Buf =/= [] andalso io:put_chars(user, "\n"),
     _ = [case T of
             error_logger ->
                 error_logger_tty_h:write_event(Event, io);
@@ -238,7 +239,7 @@ handle_call(flush, S=#eh_state{buf=Buf, logger_cfg=Cfg}) ->
             logger ->
                 Bin = logger_h_common:log_to_binary(Event,Cfg),
                 io:put_chars(user, Bin);
-            _ -> io:format(user, "unknown type ~p~n",[T]),
+            _ ->
                 ignore
          end || {T, Event} <- lists:reverse(Buf)],
     {ok, ok, S#eh_state{buf=[]}}.
