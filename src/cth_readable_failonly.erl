@@ -37,7 +37,7 @@
 
 %% Logger API
 -export([log/2,
-         adding_handler/2, removing_handler/2]).
+         adding_handler/1, removing_handler/1]).
 
 -define(DEFAULT_LAGER_SINK, lager_event).
 -define(DEFAULT_LAGER_HANDLER_CONF,
@@ -65,13 +65,14 @@ init(Id, _Opts) ->
     Named = spawn_link(fun() -> receive after infinity -> ok end end),
     register(?MODULE, Named),
     HasLogger = erlang:function_exported(logger, module_info, 0), % Pre OTP-21 or not
+    Cfg = maybe_steal_logger_config(),
     case HasLogger of
         false ->
             error_logger:tty(false), % TODO check if on to begin with
             application:load(sasl); % TODO do this optionally?
         true ->
-            %% Assume logger_std_h is running // TODO: check if on to begin with
-            logger:add_handler_filter(logger_std_h, ?MODULE, {fun(_,_) -> stop end, nostate}),
+            %% Assume default logger is running // TODO: check if on to begin with
+            logger:add_handler_filter(default, ?MODULE, {fun(_,_) -> stop end, nostate}),
             ok
     end,
     LagerReset = setup_lager(),
@@ -82,11 +83,11 @@ init(Id, _Opts) ->
             {ok, #state{id=Id, sasl_reset={reset, tty}, lager_reset=LagerReset,
                         handlers=[?MODULE], named=Named, has_logger=HasLogger}};
         {ok, tty} when HasLogger ->
-            logger:add_handler(?MODULE, ?MODULE, #{sasl => sasl}),
+            logger:add_handler(?MODULE, ?MODULE, Cfg#{sasl => sasl}),
             {ok, #state{id=Id, lager_reset=LagerReset, handlers=[?MODULE],
                         named=Named, has_logger=HasLogger}};
         _ when HasLogger ->
-            logger:add_handler(?MODULE, ?MODULE, #{sasl => nosasl}),
+            logger:add_handler(?MODULE, ?MODULE, Cfg#{sasl => nosasl}),
             {ok, #state{id=Id, lager_reset=LagerReset, handlers=[?MODULE],
                         named=Named, has_logger=HasLogger}};
         _ ->
@@ -173,7 +174,7 @@ terminate(_State=#state{handlers=Handlers, sasl_reset=SReset,
 
     if HasLogger ->
            logger:remove_handler(?MODULE),
-           logger:remove_handler_filter(logger_std_h, ?MODULE);
+           logger:remove_handler_filter(default, ?MODULE);
        not HasLogger ->
            _ = [gen_event:delete_handler(error_logger, Handler, shutdown)
                 || Handler <- Handlers]
@@ -254,12 +255,12 @@ terminate(_, _) ->
 
 
 %%%%%%%%%%%%%%%% LOGGER %%%%%%%%%%%%%%%%%%%
-adding_handler(_Id, Config = #{sasl := SASL}) ->
+adding_handler(Config = #{sasl := SASL}) ->
     {ok, Pid} = gen_event:start({local, cth_readable_logger}, []),
     gen_event:add_handler(cth_readable_logger, ?MODULE, [SASL]),
     {ok, Config#{cth_readable_logger => Pid}}.
 
-removing_handler(_Id, #{cth_readable_logger := Pid}) ->
+removing_handler(#{cth_readable_logger := Pid}) ->
     try gen_event:stop(Pid, shutdown, 1000) of
         ok -> ok
     catch
@@ -275,7 +276,7 @@ maybe_steal_logger_config() ->
     case erlang:function_exported(logger, module_info, 0) of
         false -> undefined;
         true ->
-            {ok, {_,Cfg}} = logger:get_handler_config(logger_std_h),
+            {ok, {_,Cfg}} = logger:get_handler_config(default),
             maps:with([formatter], Cfg) % only keep the essential
     end.
 

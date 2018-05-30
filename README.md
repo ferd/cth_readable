@@ -67,8 +67,11 @@ configurations.
 
 ## Changelog
 
+1.4.1:
+- OTP-21-rc2 support (Logger interface); dropping rc1 support.
+
 1.4.0:
-- OTP-21 support (Logger interface)
+- OTP-21-rc1 support (Logger interface)
 - Add compact shell output handler
 
 1.3.4:
