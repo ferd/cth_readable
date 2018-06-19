@@ -67,6 +67,9 @@ configurations.
 
 ## Changelog
 
+1.4.2:
+- OTP-21.0 support (Logger interface)
+
 1.4.1:
 - OTP-21-rc2 support (Logger interface); dropping rc1 support.
 
