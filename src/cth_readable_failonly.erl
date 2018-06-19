@@ -276,8 +276,12 @@ maybe_steal_logger_config() ->
     case erlang:function_exported(logger, module_info, 0) of
         false -> undefined;
         true ->
-            {ok, {_,Cfg}} = logger:get_handler_config(default),
-            maps:with([formatter], Cfg) % only keep the essential
+            case logger:get_handler_config(default) of
+                {ok, {_,Cfg}} -> %% OTP-21.0-rc2 result
+                    maps:with([formatter], Cfg); % only keep the essential
+                 {ok, Cfg} -> %% OTP-21.0 result
+                    maps:with([formatter], Cfg) % only keep the essential
+            end
     end.
 
 sasl_running() ->
