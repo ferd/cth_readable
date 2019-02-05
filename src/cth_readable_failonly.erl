@@ -52,6 +52,27 @@
          }
         ]).
 
+-ifndef(LOCATION).
+%% imported from kernel/include/logger.hrl
+-define(LOCATION,#{mfa=>{?MODULE,?FUNCTION_NAME,?FUNCTION_ARITY},
+                   line=>?LINE,
+                   file=>?FILE}).
+-endif.
+%% imported from logger_internal.hrl
+-define(DEFAULT_FORMATTER, logger_formatter).
+-define(DEFAULT_FORMAT_CONFIG, #{legacy_header => true,
+                                 single_line => false}).
+-define(LOG_INTERNAL(Level,Report),
+        case logger:allow(Level,?MODULE) of
+            true ->
+                %% Spawn this to avoid deadlocks
+                _ = spawn(logger,macro_log,[?LOCATION,Level,Report,
+                                            logger:add_default_metadata(#{})]),
+                ok;
+            false ->
+                ok
+        end).
+
 %% @doc Return a unique id for this CTH.
 id(_Opts) ->
     {?MODULE, make_ref()}.
@@ -238,7 +259,7 @@ handle_call(flush, S=#eh_state{buf=Buf, logger_cfg=Cfg}) ->
             lager ->
                 io:put_chars(user, Event);
             logger ->
-                Bin = logger_h_common:log_to_binary(Event,Cfg),
+                Bin = log_to_binary(Event,Cfg),
                 io:put_chars(user, Bin);
             _ ->
                 ignore
@@ -379,3 +400,54 @@ swap_lager_handlers(Old, New, Opts) ->
     lager_app:start_handler(?DEFAULT_LAGER_SINK,
                             New, Opts).
 
+%% Imported from Erlang/OTP -- this function used to be public in OTP-20,
+%% but was then taken public by OTP-21, which broke functionality.
+%% Original at https://raw.githubusercontent.com/erlang/otp/OTP-21.2.5/lib/kernel/src/logger_h_common.erl
+log_to_binary(#{msg:={report,_},meta:=#{report_cb:=_}}=Log,Config) ->
+    do_log_to_binary(Log,Config);
+log_to_binary(#{msg:={report,_},meta:=Meta}=Log,Config) ->
+    DefaultReportCb = fun logger:format_otp_report/1,
+    do_log_to_binary(Log#{meta=>Meta#{report_cb=>DefaultReportCb}},Config);
+log_to_binary(Log,Config) ->
+    do_log_to_binary(Log,Config).
+
+do_log_to_binary(Log,Config) ->
+    {Formatter,FormatterConfig} =
+        maps:get(formatter,Config,{?DEFAULT_FORMATTER,?DEFAULT_FORMAT_CONFIG}),
+    String = try_format(Log,Formatter,FormatterConfig),
+    try string_to_binary(String)
+    catch C2:R2:S2 ->
+            ?LOG_INTERNAL(debug,[{formatter_error,Formatter},
+                                 {config,FormatterConfig},
+                                 {log_event,Log},
+                                 {bad_return_value,String},
+                                 {catched,{C2,R2,S2}}]),
+            <<"FORMATTER ERROR: bad return value">>
+    end.
+
+try_format(Log,Formatter,FormatterConfig) ->
+    try Formatter:format(Log,FormatterConfig)
+    catch
+        C:R:S ->
+            ?LOG_INTERNAL(debug,[{formatter_crashed,Formatter},
+                                 {config,FormatterConfig},
+                                 {log_event,Log},
+                                 {reason,
+                                  {C,R,logger:filter_stacktrace(?MODULE,S)}}]),
+            case {?DEFAULT_FORMATTER,#{}} of
+                {Formatter,FormatterConfig} ->
+                    "DEFAULT FORMATTER CRASHED";
+                {DefaultFormatter,DefaultConfig} ->
+                    try_format(Log#{msg=>{"FORMATTER CRASH: ~tp",
+                                          [maps:get(msg,Log)]}},
+                              DefaultFormatter,DefaultConfig)
+            end
+    end.
+
+string_to_binary(String) ->
+    case unicode:characters_to_binary(String) of
+        Binary when is_binary(Binary) ->
+            Binary;
+        Error ->
+            throw(Error)
+    end.
