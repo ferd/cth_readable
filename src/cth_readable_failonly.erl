@@ -53,8 +53,8 @@
         ]).
 
 -ifndef(LOCATION).
-%% imported from kernel/include/logger.hrl
--define(LOCATION,#{mfa=>{?MODULE,?FUNCTION_NAME,?FUNCTION_ARITY},
+%% imported from kernel/include/logger.hrl but with replaced unsupported macros
+-define(LOCATION,#{mfa=>{?MODULE,log_to_binary,2},
                    line=>?LINE,
                    file=>?FILE}).
 -endif.
@@ -416,24 +416,24 @@ do_log_to_binary(Log,Config) ->
         maps:get(formatter,Config,{?DEFAULT_FORMATTER,?DEFAULT_FORMAT_CONFIG}),
     String = try_format(Log,Formatter,FormatterConfig),
     try string_to_binary(String)
-    catch C2:R2:S2 ->
+    catch C2:R2 ->
             ?LOG_INTERNAL(debug,[{formatter_error,Formatter},
                                  {config,FormatterConfig},
                                  {log_event,Log},
                                  {bad_return_value,String},
-                                 {catched,{C2,R2,S2}}]),
+                                 {catched,{C2,R2,[]}}]),
             <<"FORMATTER ERROR: bad return value">>
     end.
 
 try_format(Log,Formatter,FormatterConfig) ->
     try Formatter:format(Log,FormatterConfig)
     catch
-        C:R:S ->
+        C:R ->
             ?LOG_INTERNAL(debug,[{formatter_crashed,Formatter},
                                  {config,FormatterConfig},
                                  {log_event,Log},
                                  {reason,
-                                  {C,R,logger:filter_stacktrace(?MODULE,S)}}]),
+                                  {C,R,[]}}]),
             case {?DEFAULT_FORMATTER,#{}} of
                 {Formatter,FormatterConfig} ->
                     "DEFAULT FORMATTER CRASHED";
