@@ -67,6 +67,9 @@ configurations.
 
 ## Changelog
 
+1.4.3:
+- OTP-21.2 support (Logger interface); importing a function that was de-exported by OTP team
+
 1.4.2:
 - OTP-21.0 support (Logger interface)
 
