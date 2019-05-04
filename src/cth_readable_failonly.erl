@@ -85,7 +85,7 @@ init(Id, _Opts) ->
     %% hook and then CT as a whole.
     Named = spawn_link(fun() -> receive after infinity -> ok end end),
     register(?MODULE, Named),
-    HasLogger = has_logger(), % Pre OTP-21 or not, and with safe config
+    HasLogger = has_logger(), % Pre OTP-21 or not
     Cfg = maybe_steal_logger_config(),
     case HasLogger of
         false ->
