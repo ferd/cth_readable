@@ -85,7 +85,7 @@ init(Id, _Opts) ->
     %% hook and then CT as a whole.
     Named = spawn_link(fun() -> receive after infinity -> ok end end),
     register(?MODULE, Named),
-    HasLogger = erlang:function_exported(logger, module_info, 0), % Pre OTP-21 or not
+    HasLogger = has_logger(), % Pre OTP-21 or not, and with safe config
     Cfg = maybe_steal_logger_config(),
     case HasLogger of
         false ->
@@ -293,9 +293,19 @@ log(Msg, #{cth_readable_logger := Pid}) ->
     gen_event:notify(Pid, Msg).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+has_logger() ->
+    %% Module is present
+    erlang:function_exported(logger, module_info, 0).
+
+has_usable_logger() ->
+    %% The config is set (lager didn't remove it)
+    erlang:function_exported(logger, get_handler_config, 1) andalso
+    logger:get_handler_config(default) =/= {error, {not_found, default}}.
+
 maybe_steal_logger_config() ->
-    case erlang:function_exported(logger, module_info, 0) of
-        false -> undefined;
+    case has_logger() andalso has_usable_logger() of
+        false ->
+            #{};
         true ->
             case logger:get_handler_config(default) of
                 {ok, {_,Cfg}} -> %% OTP-21.0-rc2 result
