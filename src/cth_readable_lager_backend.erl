@@ -113,7 +113,11 @@ handle_event({log, Message},
             %% everything deadlock, so we gotta go async on the logging call.
             %% We also need to do a call so that lager doesn't reforward the
             %% event in an infinite loop.
-            spawn(fun() -> gen_event:call(error_logger, cth_readable_failonly, {lager, Formatted}) end),
+            Name = case erlang:function_exported(logger, module_info, 0) of
+                true -> cth_readable_logger;
+                false -> error_logger
+            end,
+            spawn(fun() -> gen_event:call(Name, cth_readable_failonly, {lager, Formatted}) end),
             ct_logs:tc_log(default, Formatted, []),
             {ok, State};
         false ->
