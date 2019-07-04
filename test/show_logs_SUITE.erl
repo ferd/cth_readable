@@ -3,11 +3,12 @@
 -include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -include("macro_wrap.hrl").
+-compile({parse_transform, lager_transform}).
 
 all() -> [{group, works}, {group, fails}, skip].
 
 groups() ->
-    [{all, [], [error_logger, logger, sasl, ctpal, eunit]},
+    [{all, [], [error_logger, logger, sasl, ctpal, eunit, lager]},
      {works, [], [{group, all}]},
      {fails, [], [{group, all}]}].
 
@@ -28,9 +29,15 @@ init_per_testcase(logger, Config) ->
         true -> Config;
         false -> {skip, not_supported}
     end;
+init_per_testcase(lager, Config) ->
+    {ok, Apps} = application:ensure_all_started(lager),
+    [{apps, Apps} | Config];
 init_per_testcase(_, Config) ->
     Config.
 
+end_per_testcase(lager, Config) ->
+    [application:stop(App) || App <- lists:reverse(?config(apps, Config))],
+    Config;
 end_per_testcase(_, Config) ->
     Config.
 
@@ -64,6 +71,12 @@ ctpal(Config) ->
 eunit(Config) ->
     ?assertMatch(false, ?config(fail, Config)),
     ok.
+
+lager(Config) ->
+    lager:error("error\n", []),
+    lager:warning("warn\n", []),
+    lager:info("info\n", []),
+    ?config(fail, Config) andalso error(fail).
 
 skip(_Config) ->
     ok.
