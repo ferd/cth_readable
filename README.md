@@ -67,6 +67,9 @@ configurations.
 
 ## Changelog
 
+1.4.5:
+- Restoring proper logs for Lager in OTP-21+. A problem existed when `error_logger` was no longer registered by default and lager log lines would silently get lost.
+
 1.4.4:
 - Better interactions with Lager; since newer releases, it removes the Logger default interface when starting, which could cause crashes when this happened before the CT hooks would start (i.e. a eunit suite)
 
