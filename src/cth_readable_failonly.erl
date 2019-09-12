@@ -6,7 +6,7 @@
                 handlers=[],
                 named,
                 has_logger}).
--record(eh_state, {buf = [], sasl=false, logger_cfg=undefined}).
+-record(eh_state, {buf = [], sasl=false}).
 
 %% Callbacks
 -export([id/1]).
@@ -117,7 +117,7 @@ init(Id, _Opts) ->
                         named=Named, has_logger=HasLogger}}
     end.
 
-%% @doc Called before init_per_suite is called. 
+%% @doc Called before init_per_suite is called.
 pre_init_per_suite(_Suite,Config,State) ->
     {Config, State}.
 
@@ -218,9 +218,9 @@ terminate(_State=#state{handlers=Handlers, sasl_reset=SReset,
 %%%%%%%%%%%%% ERROR_LOGGER HANDLER %%%%%%%%%%%%
 
 init([sasl]) ->
-    {ok, #eh_state{sasl=true, logger_cfg=maybe_steal_logger_config()}};
+    {ok, #eh_state{sasl=true}};
 init([nosasl]) ->
-    {ok, #eh_state{sasl=false, logger_cfg=maybe_steal_logger_config()}}.
+    {ok, #eh_state{sasl=false}}.
 
 handle_event(Event, S=#eh_state{buf=Buf}) ->
     NewBuf = case parse_event(Event) of
@@ -245,7 +245,8 @@ handle_call({ct_pal, _}=Event, S=#eh_state{buf=Buf}) ->
     {ok, ok, S#eh_state{buf=[Event | Buf]}};
 handle_call(ignore, State) ->
     {ok, ok, State#eh_state{buf=[]}};
-handle_call(flush, S=#eh_state{buf=Buf, logger_cfg=Cfg}) ->
+handle_call(flush, S=#eh_state{buf=Buf}) ->
+    Cfg = maybe_steal_logger_config(),
     ShowSASL = sasl_running() orelse sasl_ran(Buf) andalso S#eh_state.sasl,
     SASLType = get_sasl_error_logger_type(),
     Buf =/= [] andalso io:put_chars(user, "\n"),
