@@ -67,6 +67,9 @@ configurations.
 
 ## Changelog
 
+1.4.6:
+- Reloading formatter config for logs after each test where the information needs to be printed
+
 1.4.5:
 - Restoring proper logs for Lager in OTP-21+. A problem existed when `error_logger` was no longer registered by default and lager log lines would silently get lost.
 
