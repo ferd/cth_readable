@@ -29,11 +29,11 @@ maybe_eunit_format({{Type, Props}, _}) when Type =:= assert_failed
     if
         HasEUnitProps ->
             [io_lib:format("~nFailure/Error: ?assert(~s)~n", [proplists:get_value(expression, Props)]),
-             io_lib:format("  expected: true~n", []),
+             io_lib:format("  expected: ~p~n", [proplists:get_value(expected, Props)]),
              case proplists:get_value(value, Props) of
-                 false ->
-                     io_lib:format("       got: false~n", []);
                  {not_a_boolean, V} ->
+                     io_lib:format("       got: ~p~n", [V]);
+                 V ->
                      io_lib:format("       got: ~p~n", [V])
              end, io_lib:format("      line: ~p", [proplists:get_value(line, Props)])];
         HasHamcrestProps ->
