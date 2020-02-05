@@ -67,6 +67,9 @@ configurations.
 
 ## Changelog
 
+1.4.7:
+- Fixed handling of the result of an `?assertNot()` macro
+
 1.4.6:
 - Reloading formatter config for logs after each test where the information needs to be printed
 
