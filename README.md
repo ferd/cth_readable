@@ -66,6 +66,8 @@ It will let you have both proper formatting and support for arbitrary
 configurations.
 
 ## Changelog
+1.4.8:
+- Fixed handling of comments in EUnit macros
 
 1.4.7:
 - Fixed handling of the result of an `?assertNot()` macro
