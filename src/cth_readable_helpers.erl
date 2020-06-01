@@ -156,7 +156,11 @@ maybe_eunit_format({{Type, Props}, _}) when Type =:= assertCmdOutput_failed
     [io_lib:format("~n   comment: ~p", [Comment]) || {comment, Comment} <- [proplists:lookup(comment, Props)]];
 
 maybe_eunit_format(Reason) ->
-    io_lib:format("~p", [Reason]).
+    case 'Elixir.CthReadable':format_exception(Reason) of
+        false ->
+            io_lib:format("~p", [Reason]);
+        Msg -> Msg
+    end.
 
 extract_exception_pattern(Str) ->
     ["{", Class, Term|_] = re:split(Str, "[, ]{1,2}", [unicode,{return,list}]),
