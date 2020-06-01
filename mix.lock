@@ -1,0 +1,5 @@
+%{
+  "cf": {:hex, :cf, "0.3.1", "5cb902239476e141ea70a740340233782d363a31eea8ad37049561542e6cd641", [:rebar3], [], "hexpm", "315e8d447d3a4b02bcdbfa397ad03bbb988a6e0aa6f44d3add0f4e3c3bf97672"},
+  "goldrush": {:hex, :goldrush, "0.1.9", "f06e5d5f1277da5c413e84d5a2924174182fb108dabb39d5ec548b27424cd106", [:rebar3], [], "hexpm", "99cb4128cffcb3227581e5d4d803d5413fa643f4eb96523f77d9e6937d994ceb"},
+  "lager": {:hex, :lager, "3.8.0", "3402b9a7e473680ca179fc2f1d827cab88dd37dd1e6113090c6f45ef05228a1c", [:rebar3], [{:goldrush, "0.1.9", [hex: :goldrush, repo: "hexpm", optional: false]}], "hexpm", "f6cb541b688eab60730d8d286eb77256a5a9ad06eac10d43beaf55d07e68bbb6"},
+}

@@ -1,0 +1,2 @@
+defmodule CthReadable do
+end
