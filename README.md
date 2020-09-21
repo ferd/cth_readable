@@ -66,6 +66,9 @@ It will let you have both proper formatting and support for arbitrary
 configurations.
 
 ## Changelog
+1.4.9:
+- No change, re-pushing the hex.pm package since it had an untracked dependency somehow
+
 1.4.8:
 - Fixed handling of comments in EUnit macros
 
