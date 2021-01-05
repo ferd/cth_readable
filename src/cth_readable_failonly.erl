@@ -6,7 +6,7 @@
                 handlers=[],
                 named,
                 has_logger}).
--record(eh_state, {buf = [], sasl=false}).
+-record(eh_state, {buf, sasl=false, max_events = inf, stored_events = 0}).
 
 %% Callbacks
 -export([id/1]).
@@ -79,12 +79,13 @@ id(_Opts) ->
 
 %% @doc Always called before any other callback function. Use this to initiate
 %% any common state.
-init(Id, _Opts) ->
+init(Id, Opts) ->
     %% ct:pal replacement needs to know if this hook is enabled -- we use a named proc for that.
     %% Use a `receive' -- if people mock `timer' or reload it, it can kill the
     %% hook and then CT as a whole.
     Named = spawn_link(fun() -> receive after infinity -> ok end end),
     register(?MODULE, Named),
+    MaxEvents = proplists:get_value(max_events, Opts, inf),
     HasLogger = has_logger(), % Pre OTP-21 or not
     Cfg = maybe_steal_logger_config(),
     case HasLogger of
@@ -99,20 +100,20 @@ init(Id, _Opts) ->
     LagerReset = setup_lager(),
     case application:get_env(sasl, sasl_error_logger) of
         {ok, tty} when not HasLogger ->
-            ok = gen_event:add_handler(error_logger, ?MODULE, [sasl]),
+            ok = gen_event:add_handler(error_logger, ?MODULE, [sasl, {max_events, MaxEvents}]),
             application:set_env(sasl, sasl_error_logger, false),
             {ok, #state{id=Id, sasl_reset={reset, tty}, lager_reset=LagerReset,
                         handlers=[?MODULE], named=Named, has_logger=HasLogger}};
         {ok, tty} when HasLogger ->
-            logger:add_handler(?MODULE, ?MODULE, Cfg#{sasl => sasl}),
+            logger:add_handler(?MODULE, ?MODULE, Cfg#{sasl => true, max_events => MaxEvents}),
             {ok, #state{id=Id, lager_reset=LagerReset, handlers=[?MODULE],
                         named=Named, has_logger=HasLogger}};
         _ when HasLogger ->
-            logger:add_handler(?MODULE, ?MODULE, Cfg#{sasl => nosasl}),
+            logger:add_handler(?MODULE, ?MODULE, Cfg#{sasl => false, max_events => MaxEvents}),
             {ok, #state{id=Id, lager_reset=LagerReset, handlers=[?MODULE],
                         named=Named, has_logger=HasLogger}};
         _ ->
-            ok = gen_event:add_handler(error_logger, ?MODULE, [nosasl]),
+            ok = gen_event:add_handler(error_logger, ?MODULE, [{max_events, MaxEvents}]),
             {ok, #state{id=Id, lager_reset=LagerReset, handlers=[?MODULE],
                         named=Named, has_logger=HasLogger}}
     end.
@@ -217,10 +218,13 @@ terminate(_State=#state{handlers=Handlers, sasl_reset=SReset,
 
 %%%%%%%%%%%%% ERROR_LOGGER HANDLER %%%%%%%%%%%%
 
-init([sasl]) ->
-    {ok, #eh_state{sasl=true}};
-init([nosasl]) ->
-    {ok, #eh_state{sasl=false}}.
+init(Opts) ->
+    {ok,
+        #eh_state{
+            buf = queue:new(),
+            sasl = proplists:get_bool(sasl, Opts),
+            max_events = proplists:get_value(max_events, Opts)
+        }}.
 
 handle_event(Event, S=#eh_state{buf=Buf}) ->
     NewBuf = case parse_event(Event) of
@@ -236,36 +240,22 @@ handle_event(_, S) ->
 handle_info(_, State) ->
     {ok, State}.
 
-handle_call({lager, _} = Event, S=#eh_state{buf=Buf}) ->
+handle_call({lager, _} = Event, State) ->
     %% lager events come in from our fake handler, pre-filtered.
-    {ok, ok, S#eh_state{buf=[Event | Buf]}};
+    {ok, ok, buffer_event(Event, State)};
 handle_call({ct_pal, ignore}, S) ->
     {ok, ok, S};
-handle_call({ct_pal, _}=Event, S=#eh_state{buf=Buf}) ->
-    {ok, ok, S#eh_state{buf=[Event | Buf]}};
+handle_call({ct_pal, _}=Event, State) ->
+    {ok, ok, buffer_event(Event, State)};
 handle_call(ignore, State) ->
-    {ok, ok, State#eh_state{buf=[]}};
+    {ok, ok, State#eh_state{buf=queue:new(), stored_events=0}};
 handle_call(flush, S=#eh_state{buf=Buf}) ->
     Cfg = maybe_steal_logger_config(),
     ShowSASL = sasl_running() orelse sasl_ran(Buf) andalso S#eh_state.sasl,
     SASLType = get_sasl_error_logger_type(),
-    Buf =/= [] andalso io:put_chars(user, "\n"),
-    _ = [case T of
-            error_logger ->
-                error_logger_tty_h:write_event(Event, io);
-            sasl when ShowSASL ->
-                sasl_report:write_report(standard_io, SASLType, Event);
-            ct_pal ->
-                io:format(user, Event, []);
-            lager ->
-                io:put_chars(user, Event);
-            logger ->
-                Bin = log_to_binary(Event,Cfg),
-                io:put_chars(user, Bin);
-            _ ->
-                ignore
-         end || {T, Event} <- lists:reverse(Buf)],
-    {ok, ok, S#eh_state{buf=[]}}.
+    not queue:is_empty(Buf) andalso io:put_chars(user, "\n"),
+    flush(Buf, Cfg, ShowSASL, SASLType),
+    {ok, ok, S#eh_state{buf=queue:new(), stored_events=0}}.
 
 code_change(_, _, State) ->
     {ok, State}.
@@ -273,13 +263,46 @@ code_change(_, _, State) ->
 terminate(_, _) ->
     ok.
 
+buffer_event(Event, S=#eh_state{buf=Buf, max_events=inf}) ->
+    %% unbound buffer
+    S#eh_state{buf=queue:in(Event, Buf)};
+buffer_event(Event, S=#eh_state{buf=Buf, max_events=MaxEvents, stored_events=StoredEvents}) when MaxEvents < StoredEvents ->
+    %% bound buffer; buffer not filled yet
+    S#eh_state{buf=queue:in(Event, Buf), stored_events=StoredEvents + 1};
+buffer_event(Event, S=#eh_state{buf=Buf0}) ->
+    %% bound buffer; buffer filled
+    {_, Buf1} = queue:out(Buf0),
+    S#eh_state{buf=queue:in(Event, Buf1)}.
+
+flush(Buf, Cfg, ShowSASL, SASLType) ->
+    case queue:out(Buf) of
+        {empty, _} -> ok;
+        {{T, Event}, NextBuf} ->
+            case T of
+                error_logger ->
+                    error_logger_tty_h:write_event(Event, io);
+                sasl when ShowSASL ->
+                    sasl_report:write_report(standard_io, SASLType, Event);
+                ct_pal ->
+                    io:format(user, Event, []);
+                lager ->
+                    io:put_chars(user, Event);
+                logger ->
+                    Bin = log_to_binary(Event,Cfg),
+                    io:put_chars(user, Bin);
+                _ ->
+                    ignore
+            end,
+            flush(NextBuf, Cfg, ShowSASL, SASLType)
+    end.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 %%%%%%%%%%%%%%%% LOGGER %%%%%%%%%%%%%%%%%%%
-adding_handler(Config = #{sasl := SASL}) ->
+adding_handler(Config = #{sasl := SASL, max_events := MaxEvents}) ->
     {ok, Pid} = gen_event:start({local, cth_readable_logger}, []),
-    gen_event:add_handler(cth_readable_logger, ?MODULE, [SASL]),
+    gen_event:add_handler(cth_readable_logger, ?MODULE, [{sasl, SASL}, {max_events, MaxEvents}]),
     {ok, Config#{cth_readable_logger => Pid}}.
 
 removing_handler(#{cth_readable_logger := Pid}) ->
@@ -328,10 +351,13 @@ get_sasl_error_logger_type() ->
         _ -> all
     end.
 
-sasl_ran([]) -> false;
-sasl_ran([{sasl, {_DateTime, {info_report,_,
-            {_,progress, [{application,sasl},{started_at,_}|_]}}}}|_]) -> true;
-sasl_ran([_|T]) -> sasl_ran(T).
+sasl_ran(Buf) ->
+    case queue:out(Buf) of
+        {empty, _} -> false;
+        {{sasl, {_DateTime, {info_report,_,
+            {_,progress, [{application,sasl},{started_at,_}|_]}}}}, _} -> true;
+        {_, Rest} -> sasl_ran(Rest)
+    end.
 
 call_handlers(Msg, #state{handlers=Handlers, has_logger=HasLogger}) ->
     Name = if HasLogger -> cth_readable_logger;
