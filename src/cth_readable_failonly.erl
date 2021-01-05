@@ -6,7 +6,7 @@
                 handlers=[],
                 named,
                 has_logger}).
--record(eh_state, {buf, sasl=false, max_events = inf, stored_events = 0}).
+-record(eh_state, {buf=queue:new(), sasl=false, max_events = inf, stored_events = 0}).
 
 %% Callbacks
 -export([id/1]).
@@ -221,7 +221,6 @@ terminate(_State=#state{handlers=Handlers, sasl_reset=SReset,
 init(Opts) ->
     {ok,
         #eh_state{
-            buf = queue:new(),
             sasl = proplists:get_bool(sasl, Opts),
             max_events = proplists:get_value(max_events, Opts)
         }}.
@@ -264,20 +263,20 @@ terminate(_, _) ->
     ok.
 
 buffer_event(Event, S=#eh_state{buf=Buf, max_events=inf}) ->
-    %% unbound buffer
+     %% unbound buffer
     S#eh_state{buf=queue:in(Event, Buf)};
-buffer_event(Event, S=#eh_state{buf=Buf, max_events=MaxEvents, stored_events=StoredEvents}) when MaxEvents < StoredEvents ->
-    %% bound buffer; buffer not filled yet
+buffer_event(Event, S=#eh_state{buf=Buf, max_events=MaxEvents, stored_events=StoredEvents}) when MaxEvents > StoredEvents ->
+     %% bound buffer; buffer not filled yet
     S#eh_state{buf=queue:in(Event, Buf), stored_events=StoredEvents + 1};
 buffer_event(Event, S=#eh_state{buf=Buf0}) ->
-    %% bound buffer; buffer filled
+     %% bound buffer; buffer filled
     {_, Buf1} = queue:out(Buf0),
     S#eh_state{buf=queue:in(Event, Buf1)}.
 
 flush(Buf, Cfg, ShowSASL, SASLType) ->
     case queue:out(Buf) of
         {empty, _} -> ok;
-        {{T, Event}, NextBuf} ->
+        {{value, {T, Event}}, NextBuf} ->
             case T of
                 error_logger ->
                     error_logger_tty_h:write_event(Event, io);
@@ -354,8 +353,8 @@ get_sasl_error_logger_type() ->
 sasl_ran(Buf) ->
     case queue:out(Buf) of
         {empty, _} -> false;
-        {{sasl, {_DateTime, {info_report,_,
-            {_,progress, [{application,sasl},{started_at,_}|_]}}}}, _} -> true;
+        {{value, {sasl, {_DateTime, {info_report,_,
+            {_,progress, [{application,sasl},{started_at,_}|_]}}}}}, _} -> true;
         {_, Rest} -> sasl_ran(Rest)
     end.
 
