@@ -14,7 +14,7 @@ There are currently the following hooks:
    working like `ct:pal/1-4`, but being silenceable by that hook. A parse
    transform exists to automatically convert `ct:pal/1-3` into `cthr:pal/1-3`.
    Also automatically handles lager. This hook buffers the IO/logging events,
-   and the buffer size can be limited with the `mmax_events` config option. The
+   and the buffer size can be limited with the `max_events` config option. The
    default value is `inf` which means that all events are buffered.
 4. `cth_readable_nosasl`, which disables all SASL logging. It however requires
    to be run *before* `cth_readable_failonly` to work.
