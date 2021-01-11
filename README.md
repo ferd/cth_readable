@@ -34,11 +34,13 @@ Add the following to your `rebar.config`:
 
 ```erlang
 {deps, [
-    {cth_readable, {git, "https://github.com/ferd/cth_readable.git", {tag, "v1.1.0"}}}
+    {cth_readable, {git, "https://github.com/ferd/cth_readable.git", {tag, "v1.4.9"}}}
     ]}.
 
-{ct_opts, [{ct_hooks, [{cth_readable_failonly, [{max_events, 1000}]}, cth_readable_shell]}]}.
 {ct_compile_opts, [{parse_transform, cth_readable_transform}]}.
+{ct_opts, [{ct_hooks, [cth_readable_failonly, cth_readable_shell]}]}.
+%% Or add limitations to how many messages are buffered with:
+%%  {ct_opts, [{ct_hooks, [{cth_readable_failonly, [{max_events, 1000}]}, cth_readable_shell]}]}.
 ```
 
 ## Usage with lager
@@ -68,6 +70,9 @@ It will let you have both proper formatting and support for arbitrary
 configurations.
 
 ## Changelog
+1.5.0 / Master:
+- Adding an optional bound buffer in `cth_readable_failonly` (thanks @TheGeorge)
+
 1.4.9:
 - No change, re-pushing the hex.pm package since it had an untracked dependency somehow
 
