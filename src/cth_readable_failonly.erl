@@ -6,7 +6,11 @@
                 handlers=[],
                 named,
                 has_logger}).
--record(eh_state, {buf=queue:new(), sasl=false, max_events = inf, stored_events = 0}).
+-record(eh_state, {buf=queue:new(),
+                   sasl=false,
+                   max_events = inf,
+                   stored_events = 0,
+                   dropped_events = 0}).
 
 %% Callbacks
 -export([id/1]).
@@ -225,14 +229,14 @@ init(Opts) ->
             max_events = proplists:get_value(max_events, Opts)
         }}.
 
-handle_event(Event, S=#eh_state{buf=Buf}) ->
-    NewBuf = case parse_event(Event) of
-        ignore -> Buf;
-        logger -> [{logger, Event} | Buf];
-        sasl -> [{sasl, {calendar:local_time(), Event}}|Buf];
-        error_logger -> [{error_logger, {erlang:universaltime(), Event}}|Buf]
+handle_event(Event, State) ->
+    NewState = case parse_event(Event) of
+        ignore -> State;
+        logger -> buffer_event({logger, Event}, State);
+        sasl -> buffer_event({sasl, {calendar:local_time(), Event}}, State);
+        error_logger -> buffer_event({error_logger, {erlang:universaltime(), Event}}, State)
     end,
-    {ok, S#eh_state{buf=NewBuf}};
+    {ok, NewState};
 handle_event(_, S) ->
     {ok, S}.
 
@@ -248,13 +252,15 @@ handle_call({ct_pal, _}=Event, State) ->
     {ok, ok, buffer_event(Event, State)};
 handle_call(ignore, State) ->
     {ok, ok, State#eh_state{buf=queue:new(), stored_events=0}};
-handle_call(flush, S=#eh_state{buf=Buf}) ->
+handle_call(flush, S=#eh_state{buf=Buf, dropped_events=Dropped}) ->
     Cfg = maybe_steal_logger_config(),
     ShowSASL = sasl_running() orelse sasl_ran(Buf) andalso S#eh_state.sasl,
     SASLType = get_sasl_error_logger_type(),
     not queue:is_empty(Buf) andalso io:put_chars(user, "\n"),
-    flush(Buf, Cfg, ShowSASL, SASLType),
-    {ok, ok, S#eh_state{buf=queue:new(), stored_events=0}}.
+    flush(Buf, Cfg, ShowSASL, SASLType, Dropped),
+    {ok, ok, S#eh_state{buf=queue:new(), stored_events=0}};
+handle_call(_Event, State) ->
+    {ok, ok, State}.
 
 code_change(_, _, State) ->
     {ok, State}.
@@ -268,10 +274,16 @@ buffer_event(Event, S=#eh_state{buf=Buf, max_events=inf}) ->
 buffer_event(Event, S=#eh_state{buf=Buf, max_events=MaxEvents, stored_events=StoredEvents}) when MaxEvents > StoredEvents ->
      %% bound buffer; buffer not filled yet
     S#eh_state{buf=queue:in(Event, Buf), stored_events=StoredEvents + 1};
-buffer_event(Event, S=#eh_state{buf=Buf0}) ->
+buffer_event(Event, S=#eh_state{buf=Buf0, dropped_events=DroppedEvents}) ->
      %% bound buffer; buffer filled
     {_, Buf1} = queue:out(Buf0),
-    S#eh_state{buf=queue:in(Event, Buf1)}.
+    S#eh_state{buf=queue:in(Event, Buf1), dropped_events=DroppedEvents + 1}.
+
+flush(Buf, Cfg, ShowSASL, SASLType, Dropped) when Dropped > 0 ->
+    io:format(user, "(logs are truncated, dropped ~b events)~n", [Dropped]),
+    flush(Buf, Cfg, ShowSASL, SASLType);
+flush(Buf, Cfg, ShowSASL, SASLType, _) ->
+    flush(Buf, Cfg, ShowSASL, SASLType).
 
 flush(Buf, Cfg, ShowSASL, SASLType) ->
     case queue:out(Buf) of
