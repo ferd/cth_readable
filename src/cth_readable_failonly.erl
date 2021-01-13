@@ -236,9 +236,7 @@ handle_event(Event, State) ->
         sasl -> buffer_event({sasl, {calendar:local_time(), Event}}, State);
         error_logger -> buffer_event({error_logger, {erlang:universaltime(), Event}}, State)
     end,
-    {ok, NewState};
-handle_event(_, S) ->
-    {ok, S}.
+    {ok, NewState}.
 
 handle_info(_, State) ->
     {ok, State}.
