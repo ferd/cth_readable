@@ -19,7 +19,7 @@
 -define(MAX_VERBOSITY, 100).
 -endif.
 
--export([pal/1, pal/2, pal/3, pal/4]).
+-export([pal/1, pal/2, pal/3, pal/4, pal/5]).
 
 pal(Format) ->
     pal(default, ?STD_IMPORTANCE, Format, []).
@@ -75,6 +75,23 @@ pal(Category,Importance,Format,Args) ->
                            {ct_pal, format(Category,Importance,Format,Args)}),
             %% Send to ct group leader
             ct_logs:tc_log(Category, Importance, Format, Args),
+            ok
+    end.
+
+pal(Category,Importance,Format,Args,Opts) ->
+    case whereis(cth_readable_failonly) of
+        undefined -> % hook not running, passthrough
+            ct_logs:tc_pal(Category,Importance,Format,Args,Opts);
+        _ -> % hook running, take over
+            %% Send to error_logger, but only our own handler
+            Name = case erlang:function_exported(logger, module_info, 0) of
+                true -> cth_readable_logger;
+                false -> error_logger
+            end,
+            gen_event:call(Name, cth_readable_failonly,
+                           {ct_pal, format(Category,Importance,Format,Args)}),
+            %% Send to ct group leader
+            ct_logs:tc_log(Category, Importance, Format, Args, Opts),
             ok
     end.
 
