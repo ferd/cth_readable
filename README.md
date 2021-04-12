@@ -34,7 +34,7 @@ Add the following to your `rebar.config`:
 
 ```erlang
 {deps, [
-    {cth_readable, {git, "https://github.com/ferd/cth_readable.git", {tag, "v1.4.9"}}}
+    {cth_readable, {git, "https://github.com/ferd/cth_readable.git", {tag, "v1.5.1"}}}
     ]}.
 
 {ct_compile_opts, [{parse_transform, cth_readable_transform}]}.
@@ -70,8 +70,12 @@ It will let you have both proper formatting and support for arbitrary
 configurations.
 
 ## Changelog
-1.5.0 / Master:
+1.5.1:
+- Adding support for `cthr:pal/5` (thanks @ashleyjlive)
+
+1.5.0:
 - Adding an optional bound buffer in `cth_readable_failonly` (thanks @TheGeorge)
+- (published to hex but never to github, ended up with a messy commit tree)
 
 1.4.9:
 - No change, re-pushing the hex.pm package since it had an untracked dependency somehow
