@@ -14,10 +14,13 @@
 -define(STACK(Suite, CasePat, CaseArgs, Reason, Color, Label),
         begin
          ?CASE(Suite, CasePat, Color, Label, CaseArgs),
-         io:format(user, "%%% ~p ==> "++colorize(Color, maybe_eunit_format(Reason))++"~n", [Suite])
+         io:format(user, "%%% ~p ==> ~ts~n", [Suite,colorize(Color, maybe_eunit_format(Reason))])
         end).
 -define(CASE(Suite, CasePat, Color, Res, Args),
-        io:format(user, "%%% ~p ==> "++CasePat++": "++colorize(Color, Res)++"~n", [Suite | Args])).
+        case Res of
+            "OK" -> io:put_chars(user, colorize(Color, "."));
+            _ -> io:format(user, lists:flatten(["~n%%% ~p ==> ",CasePat,": ",colorize(Color, Res),"~n"]), [Suite | Args])
+        end).
 
 %% Callbacks
 -export([id/1]).
