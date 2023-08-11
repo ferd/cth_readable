@@ -132,7 +132,7 @@ on_tc_skip(Suite, TC, Reason, State=#state{groups=Groups, opts=Opts}) ->
     State#state{suite=Suite}.
 
 skip(Suite, TC, Groups, Reason, Opts) ->
-    Verbose = proplists:get_value(verbose, Opts),
+    Verbose = proplists:get_value(verbose, Opts, true),
     ?SKIP(Suite, "~s", [format_path(TC,Groups)], Reason, Verbose).
 
 %% @doc Called when a test case is skipped by either user action
