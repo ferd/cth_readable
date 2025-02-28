@@ -70,6 +70,10 @@ It will let you have both proper formatting and support for arbitrary
 configurations.
 
 ## Changelog
+
+1.6.1:
+- Cleaning up some code for OTP-28, mostly around type usage
+
 1.6.0:
 - Adding support for less verbose test skipping (thanks @paulo-ferraz-oliveira)
 
